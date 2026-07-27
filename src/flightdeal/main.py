@@ -139,22 +139,55 @@ def main(argv: list[str] | None = None) -> int:
     notifier = build_notifier(notifier_name)
 
     if result.all_failed:
-        # 要件4.3: サイレント障害防止
-        notifier.send(formatter.format_failure(result))
-        log.error("run_all_failed", extra={"routes": len(result.results)})
-        return 2
+        # 要件4.3: サイレント障害防止。通知にも失敗しても、取得失敗の事実は必ず残す。
+        log.error(
+            "run_all_failed",
+            extra={
+                "routes": len(result.results),
+                "errors": [r.error for r in result.results if r.error][:5],
+            },
+        )
+        notified = _notify(notifier, formatter.format_failure(result))
+        return 2 if notified else 3
 
     body = formatter.format_run(result)
     if not body:
         log.info("run_no_deal", extra={"elapsed": result.elapsed_seconds})
         return 0
 
-    notifier.send(body)
+    if not _notify(notifier, body):
+        return 3
+
     log.info(
         "run_done",
         extra={"notified": len(result.notifiable), "elapsed": result.elapsed_seconds},
     )
     return 0
+
+
+def _notify(notifier, text: str) -> bool:
+    """通知を送る。失敗しても例外を投げず False を返す。
+
+    通知の失敗でスタックトレースを吐いて落ちると、本当の原因（取得失敗など）が
+    ログに埋もれる。ここで受け止めて、原因が読める形にしてから終了コードで伝える。
+    """
+    try:
+        notifier.send(text)
+        return True
+    except Exception as e:
+        log.error("notify_failed", extra={"notifier": notifier.name, "error": str(e)})
+        print(f"\n通知の送信に失敗しました: {e}")
+        if "環境変数が未設定" in str(e):
+            print(
+                "  ローカル実行なら .env を確認、"
+                "GitHub Actions なら Settings > Secrets and variables > Actions に\n"
+                "  LINE_CHANNEL_ACCESS_TOKEN と LINE_TO_USER_ID を登録してください。"
+            )
+        # 送れなかった本文は標準出力に残す（通知が届かなくても内容は追える）
+        print("--- 送信できなかった本文 ---")
+        print(text)
+        print("--------------------------")
+        return False
 
 
 if __name__ == "__main__":

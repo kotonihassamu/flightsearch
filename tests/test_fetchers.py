@@ -142,3 +142,18 @@ def test_flights_to_flight_falls_back_to_type_when_no_airline_name():
     flight = flights_to_flight(parsed, "HND", "HIJ", date(2026, 8, 1))
     assert flight is not None
     assert flight.airline == "NH"
+
+
+def test_import_failure_message_includes_real_cause():
+    """「未インストール」と決めつけず、実際の例外内容を出すこと。
+
+    ImportError を握りつぶして固定文言にすると、
+    「古い版が入っている」「依存の初期化に失敗」といった別原因を追えなくなる。
+    """
+    from flightdeal.fetchers.fast_flights_fetcher import import_failure_message
+
+    msg = import_failure_message(ImportError("cannot import name 'FlightQuery'"))
+
+    assert "ImportError" in msg
+    assert "cannot import name 'FlightQuery'" in msg  # 本当の原因が残る
+    assert "3.x" in msg                                # 対処のヒント

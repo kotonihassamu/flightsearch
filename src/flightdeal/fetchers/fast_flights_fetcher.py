@@ -48,6 +48,42 @@ DEFAULT_HEADERS = {
 }
 
 
+def import_failure_message(error: Exception) -> str:
+    """fast-flights を読み込めなかったときの説明文を組み立てる。
+
+    「インストールされていません」と決めつけないこと。実際には
+    「古い版が入っていてAPIが違う」「依存ライブラリの読み込み失敗」なども
+    ImportError になる。原因を握りつぶすと調査できなくなる。
+    """
+    return (
+        f"fast-flights を読み込めません: {type(error).__name__}: {error} / "
+        "確認: (1) pip install -r requirements.txt が成功しているか "
+        "(2) fast-flights 3.x が入っているか（本システムは FlightQuery / create_filter を使う。"
+        "2.x の FlightData ではない） "
+        '(3) python -c "import fast_flights; print(fast_flights.__version__ '
+        'if hasattr(fast_flights,\'__version__\') else fast_flights.__file__)"'
+    )
+
+
+def _load_fast_flights():
+    """必要な fast-flights のシンボルをまとめて読み込む。
+
+    Returns:
+        (FlightQuery, Passengers, create_filter, parse, FlightsNotFound)
+
+    Raises:
+        FetchError: 読み込めない場合（原因を含めたメッセージ付き）
+    """
+    try:
+        from fast_flights import FlightQuery, Passengers, create_filter
+        from fast_flights.exceptions import FlightsNotFound
+        from fast_flights.parser import parse
+    except Exception as e:  # ImportError 以外（初期化時エラー等）も拾う
+        raise FetchError(import_failure_message(e)) from e
+
+    return FlightQuery, Passengers, create_filter, parse, FlightsNotFound
+
+
 def to_time(parts: object) -> time:
     """[時, 分] または [時] を time に変換する。
 
@@ -137,13 +173,7 @@ class FastFlightsFetcher(FlightFetcher):
         return self._session
 
     def _build_params(self, origin: str, destination: str, flight_date: date) -> dict:
-        try:
-            from fast_flights import FlightQuery, Passengers, create_filter
-        except ImportError as e:
-            raise FetchError(
-                "fast-flights がインストールされていません。"
-                "`pip install -r requirements.txt` を実行してください。"
-            ) from e
+        FlightQuery, Passengers, create_filter, _, _ = _load_fast_flights()
 
         q = create_filter(
             flights=[
@@ -183,14 +213,7 @@ class FastFlightsFetcher(FlightFetcher):
         return resp.text
 
     def fetch(self, origin: str, destination: str, flight_date: date) -> list[Flight]:
-        try:
-            from fast_flights.exceptions import FlightsNotFound
-            from fast_flights.parser import parse
-        except ImportError as e:
-            raise FetchError(
-                "fast-flights がインストールされていません。"
-                "`pip install -r requirements.txt` を実行してください。"
-            ) from e
+        _, _, _, parse, FlightsNotFound = _load_fast_flights()
 
         html = self.fetch_html(origin, destination, flight_date)
         label = f"{origin}-{destination}-{flight_date.isoformat()}"

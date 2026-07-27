@@ -1,13 +1,14 @@
 # Weekend cheap-flight finder / LINE notifier
-# Python 3.11+. Pin versions after Phase 0 verification (req 4.2).
+# Python 3.11+ (fast-flights itself requires >=3.10).
 
 # --- required ---
 requests==2.32.3          # LINE Messaging API Push / generic HTTP
 
 # --- data source (priority 1: req 3.2.2) ---
-# Non-official library. Check maintenance status & behavior in Phase 0.
-# Left unpinned so install succeeds; pin the working version after Phase 0.
-fast-flights
+# PINNED. This project uses the 3.x API (FlightQuery / create_filter / parser.parse).
+# Version 2.x has a completely different API (FlightData) and will NOT work.
+# Verified working: 3.0.2 (Phase 0, 2026-07).
+fast-flights==3.0.2
 
 # --- data source (priority 2: fallback, not adopted / commented out) ---
 # playwright==1.48.0

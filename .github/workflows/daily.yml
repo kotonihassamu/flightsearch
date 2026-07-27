@@ -43,6 +43,32 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          echo "--- installed ---"
+          pip list
+
+      # 依存が入っていても API が違えば動かない。原因を実行前に切り分ける。
+      - name: Verify fast-flights API
+        run: |
+          python - <<'PY'
+          import sys
+          try:
+              import fast_flights
+          except Exception as e:
+              print(f"NG: import fast_flights に失敗: {type(e).__name__}: {e}")
+              sys.exit(1)
+
+          print("path:", getattr(fast_flights, "__file__", "?"))
+          missing = [n for n in ("FlightQuery", "Passengers", "create_filter")
+                     if not hasattr(fast_flights, n)]
+          if missing:
+              print(f"NG: 期待するAPIがありません: {missing}")
+              print("    古い 2.x が入っている可能性があります（2.x は FlightData を使う）。")
+              print("    requirements.txt の fast-flights==3.0.2 を確認してください。")
+              sys.exit(1)
+
+          from fast_flights.parser import parse  # noqa: F401
+          print("OK: fast-flights 3.x API を確認しました")
+          PY
 
       # 要件6: 外部接続を伴わないテストのみをCIの合否条件にする
       - name: Unit tests

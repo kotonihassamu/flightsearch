@@ -164,6 +164,14 @@ GitHubのリポジトリページで:
 | `run_done` + `notified: N` | N件をLINEに送信した |
 | `run_all_failed` | 全路線で取得失敗 → 下記「もし失敗したら」 |
 
+終了コードの意味:
+
+| コード | 意味 |
+|---|---|
+| 0 | 正常（通知した or 該当0件） |
+| 2 | 全路線で取得失敗（障害通知は送れた） |
+| 3 | 通知の送信に失敗（Secrets未登録など） |
+
 ---
 
 ## STEP 8. 自動実行を見守る（3日連続で成功が完了条件）
@@ -287,6 +295,29 @@ git push -u origin main
 本リポジトリのワークフローは Node 24 対応版
 （`checkout@v6` / `setup-python@v6`）を使っているため、この警告は出ないはず。
 出る場合は古い workflow が動いている可能性があるので、push できているか確認する。
+
+### `fast-flights を読み込めません` / `期待するAPIがありません`
+
+依存は入っているが**版が違う**可能性が高い。`requirements.txt` は
+`fast-flights==3.0.2` に固定してある。バージョン指定なしにすると、環境によっては
+古い 2.x（API が全く違う）が入ってしまう。
+
+ワークフローの **Verify fast-flights API** ステップが実行前に検出する。
+このステップで落ちた場合はログの `path:` と `pip list` の出力を確認する。
+
+### `NotifyError: 環境変数が未設定です` / 終了コード 3
+
+**Secrets が未登録**（STEP 5 を飛ばしている）。
+Settings → Secrets and variables → **Actions** に、名前を完全一致で登録する:
+
+- `LINE_CHANNEL_ACCESS_TOKEN`
+- `LINE_TO_USER_ID`
+
+> よくある間違い: 「Environments」や「Codespaces」の Secrets に登録している。
+> **Actions** タブの Repository secrets に登録すること。
+
+登録後は Run workflow をやり直す。なお通知に失敗しても、送れなかった本文は
+ログに出力されるので内容は追える。
 
 ### `Authentication failed`
 
