@@ -296,6 +296,15 @@ git push -u origin main
 （`checkout@v6` / `setup-python@v6`）を使っているため、この警告は出ないはず。
 出る場合は古い workflow が動いている可能性があるので、push できているか確認する。
 
+### `ModuleNotFoundError: No module named 'typing_extensions'`
+
+fast-flights 3.0.2 は `typing_extensions` を使うのに、**依存として宣言していない**
+（ライブラリ側の不備）。ローカルでは pytest が間接的に入れるため気づきにくく、
+クリーンインストール（CI）で初めて露呈する。
+
+`requirements.txt` に `typing-extensions>=4.6.0` を明示済み。
+出る場合は requirements.txt が push されているか確認する。
+
 ### `fast-flights を読み込めません` / `期待するAPIがありません`
 
 依存は入っているが**版が違う**可能性が高い。`requirements.txt` は

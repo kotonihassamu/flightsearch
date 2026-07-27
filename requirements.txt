@@ -10,6 +10,14 @@ requests==2.32.3          # LINE Messaging API Push / generic HTTP
 # Verified working: 3.0.2 (Phase 0, 2026-07).
 fast-flights==3.0.2
 
+# fast-flights 3.0.2 imports typing_extensions but does NOT declare it as a
+# dependency. It happens to be present when pytest pulls in exceptiongroup
+# (Python < 3.11), so the gap is invisible locally and only shows up on a clean
+# install (e.g. GitHub Actions with Python 3.11) as:
+#   ModuleNotFoundError: No module named 'typing_extensions'
+# Declare it explicitly so the install is reproducible everywhere.
+typing-extensions>=4.6.0
+
 # --- data source (priority 2: fallback, not adopted / commented out) ---
 # playwright==1.48.0
 # playwright-stealth==1.0.6

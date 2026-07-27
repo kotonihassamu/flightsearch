@@ -46,28 +46,58 @@ jobs:
           echo "--- installed ---"
           pip list
 
-      # 依存が入っていても API が違えば動かない。原因を実行前に切り分ける。
+      # 依存が入っていても、版違い・依存漏れがあれば動かない。
+      # ネットワークを使わずに、実行時と同じ経路（import〜クエリ組み立て）を通す。
+      # 欠けている依存を1回で全部あぶり出すのが狙い。
       - name: Verify fast-flights API
         run: |
           python - <<'PY'
-          import sys
+          import sys, traceback
+
+          def fail(msg, e=None):
+              print(f"NG: {msg}")
+              if e is not None:
+                  traceback.print_exc()
+              sys.exit(1)
+
           try:
               import fast_flights
           except Exception as e:
-              print(f"NG: import fast_flights に失敗: {type(e).__name__}: {e}")
-              sys.exit(1)
+              fail(f"import fast_flights に失敗: {type(e).__name__}: {e}", e)
 
           print("path:", getattr(fast_flights, "__file__", "?"))
+
           missing = [n for n in ("FlightQuery", "Passengers", "create_filter")
                      if not hasattr(fast_flights, n)]
           if missing:
-              print(f"NG: 期待するAPIがありません: {missing}")
-              print("    古い 2.x が入っている可能性があります（2.x は FlightData を使う）。")
-              print("    requirements.txt の fast-flights==3.0.2 を確認してください。")
-              sys.exit(1)
+              fail(f"期待するAPIがありません: {missing}\n"
+                   "    古い 2.x が入っている可能性（2.x は FlightData を使う）。\n"
+                   "    requirements.txt の fast-flights==3.0.2 を確認。")
 
-          from fast_flights.parser import parse  # noqa: F401
-          print("OK: fast-flights 3.x API を確認しました")
+          try:
+              from fast_flights.parser import parse  # noqa: F401
+              from fast_flights.exceptions import FlightsNotFound  # noqa: F401
+          except Exception as e:
+              fail(f"parser/exceptions の読み込みに失敗: {type(e).__name__}: {e}", e)
+
+          # 実際にクエリを組み立てる（protobuf まで通す。外部接続はしない）
+          try:
+              from fast_flights import FlightQuery, Passengers, create_filter
+              q = create_filter(
+                  flights=[FlightQuery(date="2026-08-01", from_airport="HND",
+                                       to_airport="HIJ", max_stops=0)],
+                  trip="one-way", seat="economy",
+                  passengers=Passengers(adults=1),
+                  currency="JPY", language="ja",
+              )
+              params = q.params()
+          except Exception as e:
+              fail(f"クエリ組み立てに失敗: {type(e).__name__}: {e}", e)
+
+          if "tfs" not in params:
+              fail(f"tfs パラメータが生成されていません: {params}")
+
+          print("OK: fast-flights 3.x を確認（クエリ組み立てまで成功）")
           PY
 
       # 要件6: 外部接続を伴わないテストのみをCIの合否条件にする

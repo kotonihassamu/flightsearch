@@ -75,6 +75,17 @@ JAL 07:30 → 08:50  ¥23,120      ANA 08:10 → 09:30  ¥24,880
 - フォールバック: 将来この方式も失敗するようになったら Playwright を実装
   （`build_fetcher` に登録するだけでよい設計）
 
+## 環境差でハマった点（記録）
+
+| 事象 | 原因 | 対処 |
+|---|---|---|
+| ローカルで動くのにCIで `ModuleNotFoundError: typing_extensions` | fast-flights が依存宣言していない。ローカルでは pytest 経由で偶然入っていた | `requirements.txt` に明示 |
+| CIで `fast-flights がインストールされていません` | バージョン無指定で古い 2.x が入った可能性。かつエラーメッセージが原因を隠していた | `==3.0.2` に固定＋実際の例外を表示するよう修正 |
+| primp が DNS "Query Refused" | primp の独自DNSリゾルバ | 取得を requests に変更 |
+
+**教訓**: 「自分の環境で動く」は「どこでも動く」ではない。
+バージョン固定と、クリーン環境での検証（CI）が両方必要。
+
 ## 相場調整のメモ（要件 Phase 1-17）
 
 毎回の `route_done` ログに出る `cheapest_total` を記録していくと、
