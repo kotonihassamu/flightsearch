@@ -6,7 +6,7 @@
 
 ---
 
-## STEP 1. git があるか確認
+## STEP 1. git の準備
 
 ```powershell
 git --version
@@ -17,12 +17,18 @@ git --version
 **出ない場合**: https://git-scm.com/download/win からインストール。
 インストーラは既定のままでよい。終わったら PowerShell を開き直す。
 
-初回のみ、名前とメールを設定（GitHubのものでなくてもよい）:
+### 初回のみ: 身元と文字コードの設定（**必須。これを飛ばすとコミットできない**）
 
 ```powershell
 git config --global user.name "nuram"
 git config --global user.email "nuramago2000@gmail.com"
+git config --global i18n.commitEncoding utf-8
+git config --global core.quotepath false
 ```
+
+設定せずに `git commit` すると `Author identity unknown` で失敗し、
+コミットが1つも無い状態になる。すると後続の push も
+`src refspec main does not match any` で失敗する（原因は最初のエラー）。
 
 ---
 
@@ -227,3 +233,63 @@ git push
 Phase 3（全5路線・第2週末）への拡張も、`config.json` を変えて push するだけ
 （コード変更不要）。ただし `notify_top_n_per_route` を 2 に下げること
 （`docs/運用手順.md` 参照）。
+
+
+---
+
+## よくあるエラーと対処
+
+### `Author identity unknown` / `unable to auto-detect email address`
+
+STEP 1 の身元設定を飛ばしている。設定してから `git commit` をやり直す。
+
+```powershell
+git config --global user.name "nuram"
+git config --global user.email "nuramago2000@gmail.com"
+```
+
+### `error: remote origin already exists`
+
+すでに `origin` を登録済み（プレースホルダのまま登録してしまった等）。
+追加ではなく**上書き**する。
+
+```powershell
+git remote set-url origin https://github.com/<ユーザー名>/<リポジトリ名>.git
+git remote -v
+```
+
+`git remote -v` で正しいURLが2行出ることを確認する。
+
+### `error: src refspec main does not match any`
+
+**コミットが1つも無い**ときに出る。多くは上の `Author identity unknown` が原因。
+身元を設定 → `git add .` → `git commit` の順にやり直す。
+
+ブランチ名が `master` になっている場合は:
+
+```powershell
+git branch -M main
+```
+
+### `! [rejected]` / `fetch first`
+
+GitHub側でREADMEやライセンスを作ってしまい、履歴が食い違っている。
+リポジトリ作成時は何も追加しないのが正しいが、作ってしまった場合:
+
+```powershell
+git pull --rebase origin main
+git push -u origin main
+```
+
+### `Node.js 20 is deprecated` という警告が出る（実行は緑）
+
+**エラーではない。** GitHub のランナー側の予告。
+本リポジトリのワークフローは Node 24 対応版
+（`checkout@v6` / `setup-python@v6`）を使っているため、この警告は出ないはず。
+出る場合は古い workflow が動いている可能性があるので、push できているか確認する。
+
+### `Authentication failed`
+
+初回 push はブラウザで GitHub にログインする必要がある。
+ブラウザが開かない場合は Git Credential Manager が入っているか確認する
+（Git for Windows の既定で入っている）。

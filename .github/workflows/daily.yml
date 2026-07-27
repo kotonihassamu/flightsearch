@@ -32,9 +32,9 @@ jobs:
       PYTHONUTF8: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -66,7 +66,7 @@ jobs:
       # 要件4.3: 失敗時は調査用の生HTMLを7日間保持する
       - name: Upload debug artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4  # v4系が現行
         with:
           name: debug-${{ github.run_id }}
           path: artifacts/
