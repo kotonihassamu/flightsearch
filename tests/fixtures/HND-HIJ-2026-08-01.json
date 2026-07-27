@@ -1,0 +1,86 @@
+[
+  {
+    "airline": "ANA",
+    "depart_time": "18:10",
+    "arrive_time": "19:35",
+    "price": 20590,
+    "flight_number": null
+  },
+  {
+    "airline": "ANA",
+    "depart_time": "19:40",
+    "arrive_time": "21:00",
+    "price": 20590,
+    "flight_number": null
+  },
+  {
+    "airline": "JAL",
+    "depart_time": "08:45",
+    "arrive_time": "10:05",
+    "price": 22790,
+    "flight_number": null
+  },
+  {
+    "airline": "JAL",
+    "depart_time": "10:10",
+    "arrive_time": "11:30",
+    "price": 22790,
+    "flight_number": null
+  },
+  {
+    "airline": "JAL",
+    "depart_time": "11:40",
+    "arrive_time": "13:00",
+    "price": 22790,
+    "flight_number": null
+  },
+  {
+    "airline": "ANA",
+    "depart_time": "15:00",
+    "arrive_time": "16:20",
+    "price": 22790,
+    "flight_number": null
+  },
+  {
+    "airline": "JAL",
+    "depart_time": "07:30",
+    "arrive_time": "08:50",
+    "price": 23120,
+    "flight_number": null
+  },
+  {
+    "airline": "JAL",
+    "depart_time": "19:50",
+    "arrive_time": "21:10",
+    "price": 23120,
+    "flight_number": null
+  },
+  {
+    "airline": "ANA",
+    "depart_time": "08:10",
+    "arrive_time": "09:30",
+    "price": 24880,
+    "flight_number": null
+  },
+  {
+    "airline": "ANA",
+    "depart_time": "10:30",
+    "arrive_time": "11:50",
+    "price": 24880,
+    "flight_number": null
+  },
+  {
+    "airline": "ANA",
+    "depart_time": "13:45",
+    "arrive_time": "15:05",
+    "price": 24880,
+    "flight_number": null
+  },
+  {
+    "airline": "ANA",
+    "depart_time": "09:10",
+    "arrive_time": "10:30",
+    "price": 33570,
+    "flight_number": null
+  }
+]

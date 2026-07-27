@@ -1,0 +1,17 @@
+# Weekend cheap-flight finder / LINE notifier
+# Python 3.11+. Pin versions after Phase 0 verification (req 4.2).
+
+# --- required ---
+requests==2.32.3          # LINE Messaging API Push / generic HTTP
+
+# --- data source (priority 1: req 3.2.2) ---
+# Non-official library. Check maintenance status & behavior in Phase 0.
+# Left unpinned so install succeeds; pin the working version after Phase 0.
+fast-flights
+
+# --- data source (priority 2: fallback, not adopted / commented out) ---
+# playwright==1.48.0
+# playwright-stealth==1.0.6
+
+# --- dev / test ---
+pytest==8.3.3

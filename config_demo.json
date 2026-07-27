@@ -1,0 +1,75 @@
+{
+  "origin": "HND",
+  "destinations": [
+    {
+      "iata": "HIJ",
+      "name": "広島",
+      "market_price": 52000,
+      "max_price": 48000,
+      "enabled": true
+    },
+    {
+      "iata": "MYJ",
+      "name": "松山",
+      "market_price": 80000,
+      "max_price": 72000,
+      "enabled": true
+    },
+    {
+      "iata": "FUK",
+      "name": "福岡",
+      "market_price": 30000,
+      "max_price": 26000,
+      "enabled": false
+    },
+    {
+      "iata": "CTS",
+      "name": "新千歳",
+      "market_price": 32000,
+      "max_price": 28000,
+      "enabled": false
+    },
+    {
+      "iata": "OKA",
+      "name": "那覇",
+      "market_price": 40000,
+      "max_price": 34000,
+      "enabled": false
+    }
+  ],
+  "weekends_ahead": 1,
+  "time_filter": {
+    "outbound_arrive_by": "11:00",
+    "return_depart_after": "17:00"
+  },
+  "baggage_surcharge_oneway": 3500,
+  "lcc_airlines": [
+    "Peach",
+    "Jetstar",
+    "Spring Japan"
+  ],
+  "fsc_airlines": [
+    "ANA",
+    "JAL",
+    "Skymark",
+    "Solaseed",
+    "AIRDO",
+    "StarFlyer"
+  ],
+  "rank_thresholds": {
+    "S": 0.7,
+    "A": 0.85
+  },
+  "notify_top_n_per_route": 3,
+  "fetcher": "fast_flights",
+  "search": {
+    "max_searches_per_run": 20,
+    "retry_max": 2,
+    "retry_wait_seconds": 10,
+    "sleep_between_searches": [
+      5,
+      15
+    ]
+  },
+  "notifier": "console"
+}

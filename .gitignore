@@ -1,0 +1,14 @@
+# 秘匿情報（要件4.4）— 絶対にコミットしない
+.env
+*.pem
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# 実行時の生成物
+artifacts/
+*.log
