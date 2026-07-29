@@ -1,6 +1,6 @@
 # 多空港対応とVPN（要件変更）
 
-当初の要件（MVP2路線・1実行20検索まで）を、**全国20空港**へ拡張した。
+当初の要件（MVP2路線・1実行20検索まで）を、**全国43空港**へ拡張した。
 検索数が増えるとGoogleにBot判定されやすくなるため、投資スクレイパ(nikkei_DB)で
 使っている**VPN(Surfshark/WireGuard)によるIP切替**を取り込んだ。
 
@@ -10,10 +10,15 @@ HND発・直行便のある空港。
 
 | 地域 | 空港 |
 |---|---|
-| 中国・四国 | 広島 HIJ / 松山 MYJ / 高知 KCH |
-| 北陸・近畿 | 小松 KMQ / 南紀白浜 SHM |
-| 九州・沖縄 | 福岡 FUK / 長崎 NGS / 宮崎 KMI / 大分 OIT / 鹿児島 KOJ / 那覇 OKA |
-| 北海道（全空港） | 新千歳 CTS / 函館 HKD / 旭川 AKJ / 女満別 MMB / 釧路 KUH / 帯広 OBO / 稚内 WKJ / 中標津 SHB / 紋別 MBE |
+| 北海道 | 新千歳 CTS / 函館 HKD / 旭川 AKJ / 女満別 MMB / 釧路 KUH / 帯広 OBO / 稚内 WKJ / 中標津 SHB / 紋別 MBE |
+| 東北 | 青森 AOJ / 秋田 AXT / 三沢 MSJ / 大館能代 ONJ / 庄内 SYO / いわて花巻 HNA / 山形 GAJ |
+| 北陸・伊豆 | 小松 KMQ / 能登 NTQ / 八丈島 HAC |
+| 近畿 | 大阪伊丹 ITM / 南紀白浜 SHM |
+| 中国・四国 | 広島 HIJ / 松山 MYJ / 高知 KCH / 鳥取 TTJ / 米子 YGJ / 出雲 IZO / 萩石見 IWJ / 高松 TAK / 徳島 TKS |
+| 九州 | 福岡 FUK / 北九州 KKJ / 佐賀 HSG / 長崎 NGS / 熊本 KMJ / 大分 OIT / 宮崎 KMI / 鹿児島 KOJ |
+| 奄美・沖縄 | 那覇 OKA / 奄美 ASJ / 宮古 MMY / 石垣 ISG / 久米島 UEO（夏季） |
+
+除外: 関西 KIX / 神戸 UKB / 岡山 OKJ / 岩国 IWK / 山口宇部 UBJ（新幹線競合のため対象外）
 
 追加したい空港があれば `config.json` の `destinations` に1件足すだけ。
 IATAコードと `market_price` / `max_price`（暫定値でよい。survey で調整）を入れる。

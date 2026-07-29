@@ -140,6 +140,167 @@
       "market_price": 52000,
       "max_price": 46000,
       "enabled": true
+    },
+    {
+      "iata": "AOJ",
+      "name": "青森",
+      "market_price": 40000,
+      "max_price": 34000,
+      "enabled": true
+    },
+    {
+      "iata": "AXT",
+      "name": "秋田",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "MSJ",
+      "name": "三沢",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "ONJ",
+      "name": "大館能代",
+      "market_price": 44000,
+      "max_price": 38000,
+      "enabled": true
+    },
+    {
+      "iata": "SYO",
+      "name": "庄内",
+      "market_price": 40000,
+      "max_price": 34000,
+      "enabled": true
+    },
+    {
+      "iata": "HNA",
+      "name": "いわて花巻",
+      "market_price": 38000,
+      "max_price": 32000,
+      "enabled": true
+    },
+    {
+      "iata": "GAJ",
+      "name": "山形",
+      "market_price": 38000,
+      "max_price": 32000,
+      "enabled": true
+    },
+    {
+      "iata": "NTQ",
+      "name": "能登",
+      "market_price": 40000,
+      "max_price": 34000,
+      "enabled": true
+    },
+    {
+      "iata": "HAC",
+      "name": "八丈島",
+      "market_price": 30000,
+      "max_price": 26000,
+      "enabled": true
+    },
+    {
+      "iata": "ITM",
+      "name": "大阪伊丹",
+      "market_price": 34000,
+      "max_price": 28000,
+      "enabled": true
+    },
+    {
+      "iata": "TTJ",
+      "name": "鳥取",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "YGJ",
+      "name": "米子",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "IZO",
+      "name": "出雲",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "IWJ",
+      "name": "萩・石見",
+      "market_price": 44000,
+      "max_price": 38000,
+      "enabled": true
+    },
+    {
+      "iata": "TAK",
+      "name": "高松",
+      "market_price": 38000,
+      "max_price": 32000,
+      "enabled": true
+    },
+    {
+      "iata": "TKS",
+      "name": "徳島",
+      "market_price": 38000,
+      "max_price": 32000,
+      "enabled": true
+    },
+    {
+      "iata": "KKJ",
+      "name": "北九州",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "HSG",
+      "name": "佐賀",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "KMJ",
+      "name": "熊本",
+      "market_price": 44000,
+      "max_price": 38000,
+      "enabled": true
+    },
+    {
+      "iata": "ASJ",
+      "name": "奄美大島",
+      "market_price": 48000,
+      "max_price": 42000,
+      "enabled": true
+    },
+    {
+      "iata": "MMY",
+      "name": "宮古",
+      "market_price": 55000,
+      "max_price": 48000,
+      "enabled": true
+    },
+    {
+      "iata": "ISG",
+      "name": "石垣",
+      "market_price": 55000,
+      "max_price": 48000,
+      "enabled": true
+    },
+    {
+      "iata": "UEO",
+      "name": "久米島",
+      "market_price": 55000,
+      "max_price": 48000,
+      "enabled": true
     }
   ],
   "weekends_ahead": 2,
@@ -166,14 +327,15 @@
     "A": 0.85
   },
   "notify_top_n_per_route": 1,
+  "notify_max_total": 12,
   "fetcher": "fast_flights",
   "search": {
-    "max_searches_per_run": 100,
+    "max_searches_per_run": 200,
     "retry_max": 2,
     "retry_wait_seconds": 10,
     "sleep_between_searches": [
-      5,
-      15
+      4,
+      10
     ]
   },
   "notifier": "line",
@@ -185,6 +347,5 @@
     "home_org_hint": "",
     "wireguard_exe": "",
     "switch_timeout": 40
-  },
-  "notify_max_total": 12
+  }
 }
