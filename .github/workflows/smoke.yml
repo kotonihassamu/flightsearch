@@ -1,0 +1,83 @@
+name: smoke-test
+
+# 検索 → 判定 → LINE通知 の通しテストを、好きな時に手動で実行する。
+# お得な便が0件でも必ずLINEに1通届くので、「今つながっているか」を確認できる。
+#
+# 実行方法:
+#   Actions タブ → 左メニュー "smoke-test" → 右上 "Run workflow"
+#   → 必要なら routes / dest を指定 → 緑の Run workflow
+#
+# LINEに「【通しテスト】…」が届けば、検索・判定・通知の全チェーンが正常。
+
+on:
+  workflow_dispatch:
+    inputs:
+      routes:
+        description: "先頭から何路線を実検索するか（速度優先。既定2）"
+        type: string
+        default: "2"
+      dest:
+        description: "路線を指定する場合はIATAをスペース区切り（例: HIJ FUK）。空なら先頭routes路線"
+        type: string
+        default: ""
+      dry_run:
+        description: "実検索せずStubで通す（Google・LINEに接続しない／完全オフライン確認）"
+        type: boolean
+        default: false
+
+concurrency:
+  group: smoke-test
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PYTHONPATH: src
+      TZ: Asia/Tokyo
+      PYTHONUTF8: "1"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check secrets
+        if: ${{ inputs.dry_run != true }}
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_TO_USER_ID: ${{ secrets.LINE_TO_USER_ID }}
+        run: |
+          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_TO_USER_ID" ]; then
+            echo "NG: Secrets が未登録です（Settings > Secrets and variables > Actions）"
+            exit 1
+          fi
+          echo "OK: Secrets を確認（token ${#LINE_CHANNEL_ACCESS_TOKEN}文字 / userId ${#LINE_TO_USER_ID}文字）"
+
+      - name: Run smoke test
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_TO_USER_ID: ${{ secrets.LINE_TO_USER_ID }}
+        run: |
+          ARGS="--routes ${{ inputs.routes }}"
+          if [ -n "${{ inputs.dest }}" ]; then
+            ARGS="$ARGS --dest ${{ inputs.dest }}"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          echo "実行: python scripts/smoke_test.py $ARGS"
+          python scripts/smoke_test.py $ARGS
