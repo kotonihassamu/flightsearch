@@ -1,0 +1,76 @@
+name: survey
+
+# 週末料金の一括調査を GitHub Actions 上で実行する（手動実行のみ）。
+# ローカルのIP/VPN事情に依存せず、GitHubのランナーから取得する。
+# 結果レポート（調査結果_*.txt）は Artifacts からダウンロードする。LINEには送らない。
+#
+# 所要時間の目安（20空港・待機5〜15秒込み）:
+#   weeks=2  →  80検索 ≈ 約 20分
+#   weeks=4  → 160検索 ≈ 約 40分
+#   weeks=13 → 520検索 ≈ 約100分（2時間以内）
+
+on:
+  workflow_dispatch:
+    inputs:
+      weeks:
+        description: "調査する週数（13=約3か月）"
+        type: string
+        default: "13"
+      dest:
+        description: "空港を絞る場合はIATAコードをカンマ区切り（例 HIJ,FUK）。空なら全空港"
+        type: string
+        default: ""
+
+concurrency:
+  group: survey
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 118  # 2時間以内で必ず終える（超えたら打ち切り。レポートは途中まで）
+
+    env:
+      PYTHONPATH: src
+      TZ: Asia/Tokyo
+      PYTHONUTF8: "1"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run survey
+        run: |
+          # --max-minutes 105: ジョブの118分より先に自前で打ち切り、レポートを確実に書き出す
+          ARGS="--weeks ${{ inputs.weeks }} --yes --max-minutes 105 --out 調査結果.txt"
+          if [ -n "${{ inputs.dest }}" ]; then
+            for code in $(echo "${{ inputs.dest }}" | tr ',' ' '); do
+              ARGS="$ARGS --dest $code"
+            done
+          else
+            ARGS="$ARGS --all"
+          fi
+          echo "実行: python scripts/survey.py $ARGS"
+          # 一部失敗でもレポートは出るので、失敗を握りつぶさず後段でアップロードする
+          python scripts/survey.py $ARGS
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: survey-report-${{ github.run_id }}
+          path: 調査結果.txt
+          retention-days: 30
+          if-no-files-found: warn

@@ -75,15 +75,57 @@ _SAMPLE: dict[str, list[dict]] = {
 }
 
 
+def _synthesize_rows(origin: str, destination: str) -> list[dict]:
+    """_SAMPLE に無い区間のダミー便を、コードから決定的に生成する。
+
+    乱数を使わず区間コードのハッシュから決めるので、同じ区間なら毎回同じ結果になる
+    （ドライランの再現性のため）。実在の便ではない。
+    """
+    key = f"{origin}-{destination}"
+    seed = sum(ord(c) for c in key)
+    is_outbound = destination != "HND"
+    base_price = 9000 + (seed % 8) * 1000  # 9,000〜16,000
+
+    if is_outbound:
+        # 午前中に到着する便を含める（時間帯フィルタを通すため）
+        specs = [
+            ("ANA", 7 + seed % 2, (seed * 3) % 60, base_price),
+            ("JAL", 9, (seed * 7) % 60, base_price + 1800),
+            ("Solaseed Air", 13, (seed * 5) % 60, base_price - 800),
+        ]
+    else:
+        # 夕方以降に出発する便を含める
+        specs = [
+            ("ANA", 19, (seed * 3) % 60, base_price),
+            ("JAL", 20, (seed * 7) % 60, base_price + 1800),
+            ("Skymark", 16, (seed * 5) % 60, base_price - 700),
+        ]
+
+    rows = []
+    for airline, dep_h, dep_m, price in specs:
+        arr_total = dep_h * 60 + dep_m + 85  # 所要85分
+        rows.append({
+            "airline": airline,
+            "dep": f"{dep_h:02d}:{dep_m:02d}",
+            "arr": f"{(arr_total // 60) % 24:02d}:{arr_total % 60:02d}",
+            "price": price,
+            "no": None,
+        })
+    return rows
+
+
 class StubFetcher(FlightFetcher):
     """固定のサンプル便を返す取得器。"""
 
     name = "stub"
 
-    def __init__(self, fail_routes: set[str] | None = None) -> None:
+    def __init__(self, fail_routes: set[str] | None = None, synthesize: bool = True) -> None:
         # fail_routes に "HND-FUK" のようなキーを入れると、その区間で FetchError を送出する。
         # 要件4.3（路線単位の隔離・失敗の可視化）の動作確認に使う。
         self.fail_routes = fail_routes or set()
+        # synthesize=True: _SAMPLE に無い区間は、コードから決定的にダミー便を生成する。
+        # 20空港のドライランでも全路線が動くようにするため。
+        self.synthesize = synthesize
 
     def fetch(self, origin: str, destination: str, flight_date: date) -> list[Flight]:
         key = f"{origin}-{destination}"
@@ -92,7 +134,10 @@ class StubFetcher(FlightFetcher):
 
         rows = _SAMPLE.get(key)
         if rows is None:
-            raise FetchError(f"stub: サンプルデータ未定義の区間です ({key})")
+            if self.synthesize:
+                rows = _synthesize_rows(origin, destination)
+            else:
+                raise FetchError(f"stub: サンプルデータ未定義の区間です ({key})")
 
         return [
             Flight(

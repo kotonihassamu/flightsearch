@@ -33,9 +33,47 @@ from datetime import date, time
 
 from ..artifacts import save_debug
 from ..models import Flight
-from .base import FetchError, FlightFetcher
+from .base import BlockedError, FetchError, FlightFetcher
 
 log = logging.getLogger(__name__)
+
+# Bot判定・アクセス制限ページの目印。
+#
+# 【重要・実測による教訓 2026-07-29】マーカーは狭くすること。
+# 当初 v6（Yahoo用）から借りた広いマーカーで誤検知が発生した:
+#   - "recaptcha"        … Googleの正常ページにもJSルート定義 "/recaptcha/challenge" として常に含まれる
+#   - "を確認しています"  … Google Flights自身のローディング文言「複数のソースから価格を確認しています…」
+# この誤検知により、IPを何度変えても「Bot判定」となる偽の全滅が起きた。
+# 現在のマーカーは、Bot判定ページにしか現れない文言だけに絞ってある。
+# 判定に迷う場合は「ブロックと断定できるときだけ True」に倒す。誤って通しても
+# 後段の parse 失敗で検知・HTML保存されるが、誤ってブロック扱いすると全機能が死ぬ。
+BLOCK_MARKERS = (
+    "unusual traffic from your computer",
+    "our systems have detected unusual traffic",
+    "通常と異なるトラフィックが検出されました",
+    "sending automated queries",
+    "automated queries from your computer",
+)
+BLOCK_STATUS = (403, 429, 503)
+
+# 正常な検索結果ページには必ず ds:1 のデータスクリプトがある（parser が読む場所）。
+_DATA_SCRIPT_MARK = 'class="ds:1"'
+
+
+def looks_blocked(status_code: int, text: str) -> bool:
+    """Bot判定ページかどうかを判定する。
+
+    ステータスコードが明確ならそれで判定。200 の場合は、
+    「ブロック特有の文言がある」かつ「検索結果データが無い」ときだけブロック扱い。
+    """
+    if status_code in BLOCK_STATUS:
+        return True
+    low = text.lower()
+    if not any(marker in low for marker in BLOCK_MARKERS):
+        return False
+    # ブロック文言らしきものがあっても、実データが載っていれば正常ページとみなす
+    return _DATA_SCRIPT_MARK not in text
+
 
 URL = "https://www.google.com/travel/flights"
 DEFAULT_HEADERS = {
@@ -203,6 +241,20 @@ class FastFlightsFetcher(FlightFetcher):
 
         try:
             resp = session.get(URL, params=params, timeout=self.timeout)
+        except Exception as e:
+            raise FetchError(
+                f"取得に失敗しました ({origin}-{destination} {flight_date}): "
+                f"{type(e).__name__}: {e}"
+            ) from e
+
+        # Bot判定は「IPを変えれば解決する種類の失敗」として区別する（VPN切替の判断材料）
+        if looks_blocked(resp.status_code, resp.text):
+            raise BlockedError(
+                f"Bot判定/アクセス制限を検知 ({origin}-{destination} {flight_date}): "
+                f"HTTP {resp.status_code}"
+            )
+
+        try:
             resp.raise_for_status()
         except Exception as e:
             raise FetchError(

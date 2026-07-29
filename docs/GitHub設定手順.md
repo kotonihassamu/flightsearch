@@ -111,18 +111,102 @@ git push -u origin main
 
 ## STEP 5. Secrets を登録する
 
-GitHubのリポジトリページで:
+LINEのトークンをリポジトリに置くわけにはいかないので、GitHub の金庫（Secrets）に入れる。
+Actions 実行時だけ環境変数として渡され、ログにも表示されない。
 
-**Settings** → 左メニュー **Secrets and variables** → **Actions** → **New repository secret**
+### 5-1. 登録する値を手元に用意する
 
-2つ登録する（`.env` に書いたのと同じ値）:
+`.env` に書いたのと**まったく同じ値**を使う。
 
-| Name | Secret |
+```powershell
+notepad .env
+```
+
+`=` の**右側だけ**をコピーする。引用符・前後の空白・改行は含めない。
+
+```
+LINE_CHANNEL_ACCESS_TOKEN=ここから右をコピー
+LINE_TO_USER_ID=ここから右をコピー
+```
+
+### 5-2. Secrets の画面を開く
+
+1. ブラウザで自分のリポジトリを開く
+   （例: `https://github.com/kotonihassamu/flightsearch`）
+2. リポジトリ上部のタブから **Settings** をクリック
+   （`Code / Issues / Pull requests / Actions / Projects / Security / Insights / Settings`
+   の一番右。見えない場合はウィンドウを広げるか `...` の中）
+3. **左サイドバー**を下にスクロールし、**Security** のグループにある
+   **Secrets and variables** をクリック
+4. 展開されたら **Actions** をクリック
+
+URLを直接開いてもよい:
+
+```
+https://github.com/<ユーザー名>/<リポジトリ名>/settings/secrets/actions
+```
+
+### 5-3. 1つ目を登録する
+
+1. 緑の **New repository secret** ボタンをクリック
+2. **Name** に以下を**大文字・アンダースコアまで正確に**入力
+
+   ```
+   LINE_CHANNEL_ACCESS_TOKEN
+   ```
+
+3. **Secret** の欄にトークンを貼り付け
+4. **Add secret** をクリック
+
+### 5-4. 2つ目を登録する
+
+同じく **New repository secret** から:
+
+- **Name**: `LINE_TO_USER_ID`
+- **Secret**: `U` で始まる33文字のユーザーID
+- **Add secret**
+
+### 5-5. 登録できたか確認する
+
+**Repository secrets** の一覧に2つ並んでいればOK。
+
+```
+LINE_CHANNEL_ACCESS_TOKEN    Updated now
+LINE_TO_USER_ID              Updated now
+```
+
+> 値は二度と表示できない（GitHubの仕様）。間違えた場合は
+> 右の **Update** から入れ直す。削除して作り直す必要はない。
+
+### よくある間違い
+
+| 間違い | どうなるか |
 |---|---|
-| `LINE_CHANNEL_ACCESS_TOKEN` | チャネルアクセストークン（長期） |
-| `LINE_TO_USER_ID` | あなたのユーザーID（Uで始まる） |
+| **Environments** に登録した | ワークフローから見えない。Repository secrets に登録すること |
+| **Codespaces** タブに登録した | 同上。**Actions** タブであること |
+| 名前が小文字・ハイフン | 名前は完全一致。`LINE_TO_USER_ID` であって `line-to-user-id` ではない |
+| 値の前後に空白や改行が入った | 401/400 エラーになる。貼り直す |
+| `.env` ではなくチャネルシークレットを入れた | 401。必要なのは**チャネルアクセストークン（長期）** |
 
-**名前は完全一致させること。** 大文字小文字も含めて。
+### 登録漏れは実行時に検出される
+
+ワークフローに **Check secrets** ステップがあり、検索を始める前に確認する。
+未登録なら即座に赤くなり、こう表示される:
+
+```
+NG: 未登録の Secrets: LINE_TO_USER_ID
+登録場所: リポジトリの Settings > Secrets and variables > Actions
+```
+
+登録済みなら値は伏せたまま、桁数だけ表示される（診断用）:
+
+```
+OK: Secrets を確認しました（値は表示しません）
+  token  : 172 文字
+  userId : 33 文字 / 先頭 'U'
+```
+
+`userId` が33文字でない、または `U` で始まっていない場合は値が違う。
 
 ---
 

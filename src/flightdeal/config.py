@@ -13,6 +13,7 @@ from datetime import time
 from pathlib import Path
 
 from .models import RouteConfig
+from .vpn import VpnConfig
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.json"
 
@@ -45,6 +46,7 @@ class Config:
     fetcher: str
     notifier: str
     search: SearchPolicy
+    vpn: "VpnConfig"
 
     @property
     def enabled_destinations(self) -> list[RouteConfig]:
@@ -93,6 +95,7 @@ def _from_dict(raw: dict) -> Config:
             retry_wait_seconds=int(search.get("retry_wait_seconds", 10)),
             sleep_between_searches=(int(sleep[0]), int(sleep[1])),
         ),
+        vpn=VpnConfig.from_dict(raw.get("vpn")),
     )
     validate_config(cfg)
     return cfg

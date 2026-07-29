@@ -16,25 +16,130 @@
       "enabled": true
     },
     {
-      "iata": "FUK",
-      "name": "福岡",
-      "market_price": 30000,
-      "max_price": 26000,
-      "enabled": false
+      "iata": "KMQ",
+      "name": "小松",
+      "market_price": 38000,
+      "max_price": 32000,
+      "enabled": true
     },
     {
-      "iata": "CTS",
-      "name": "新千歳",
-      "market_price": 32000,
-      "max_price": 28000,
-      "enabled": false
+      "iata": "FUK",
+      "name": "福岡",
+      "market_price": 40000,
+      "max_price": 34000,
+      "enabled": true
+    },
+    {
+      "iata": "NGS",
+      "name": "長崎",
+      "market_price": 44000,
+      "max_price": 38000,
+      "enabled": true
+    },
+    {
+      "iata": "KMI",
+      "name": "宮崎",
+      "market_price": 46000,
+      "max_price": 40000,
+      "enabled": true
+    },
+    {
+      "iata": "OIT",
+      "name": "大分",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "KCH",
+      "name": "高知",
+      "market_price": 40000,
+      "max_price": 34000,
+      "enabled": true
+    },
+    {
+      "iata": "KOJ",
+      "name": "鹿児島",
+      "market_price": 46000,
+      "max_price": 40000,
+      "enabled": true
+    },
+    {
+      "iata": "SHM",
+      "name": "南紀白浜",
+      "market_price": 38000,
+      "max_price": 32000,
+      "enabled": true
     },
     {
       "iata": "OKA",
       "name": "那覇",
       "market_price": 40000,
       "max_price": 34000,
-      "enabled": false
+      "enabled": true
+    },
+    {
+      "iata": "CTS",
+      "name": "新千歳",
+      "market_price": 42000,
+      "max_price": 36000,
+      "enabled": true
+    },
+    {
+      "iata": "HKD",
+      "name": "函館",
+      "market_price": 44000,
+      "max_price": 38000,
+      "enabled": true
+    },
+    {
+      "iata": "AKJ",
+      "name": "旭川",
+      "market_price": 48000,
+      "max_price": 42000,
+      "enabled": true
+    },
+    {
+      "iata": "MMB",
+      "name": "女満別",
+      "market_price": 50000,
+      "max_price": 44000,
+      "enabled": true
+    },
+    {
+      "iata": "KUH",
+      "name": "釧路",
+      "market_price": 48000,
+      "max_price": 42000,
+      "enabled": true
+    },
+    {
+      "iata": "OBO",
+      "name": "帯広",
+      "market_price": 48000,
+      "max_price": 42000,
+      "enabled": true
+    },
+    {
+      "iata": "WKJ",
+      "name": "稚内",
+      "market_price": 55000,
+      "max_price": 48000,
+      "enabled": true
+    },
+    {
+      "iata": "SHB",
+      "name": "中標津",
+      "market_price": 52000,
+      "max_price": 46000,
+      "enabled": true
+    },
+    {
+      "iata": "MBE",
+      "name": "紋別",
+      "market_price": 52000,
+      "max_price": 46000,
+      "enabled": true
     }
   ],
   "weekends_ahead": 1,
@@ -60,10 +165,10 @@
     "S": 0.7,
     "A": 0.85
   },
-  "notify_top_n_per_route": 3,
+  "notify_top_n_per_route": 2,
   "fetcher": "fast_flights",
   "search": {
-    "max_searches_per_run": 20,
+    "max_searches_per_run": 100,
     "retry_max": 2,
     "retry_wait_seconds": 10,
     "sleep_between_searches": [
@@ -71,5 +176,14 @@
       15
     ]
   },
-  "notifier": "line"
+  "notifier": "line",
+  "vpn": {
+    "enabled": false,
+    "mode": "manual",
+    "conf_dir": "VPN",
+    "home_ip": "",
+    "home_org_hint": "",
+    "wireguard_exe": "",
+    "switch_timeout": 40
+  }
 }

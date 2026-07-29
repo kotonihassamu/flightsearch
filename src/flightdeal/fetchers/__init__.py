@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from .base import FetchError, FlightFetcher
+from .base import BlockedError, FetchError, FlightFetcher
 from .stub import FixtureFetcher, StubFetcher
 
 __all__ = [
     "FlightFetcher",
     "FetchError",
+    "BlockedError",
     "StubFetcher",
     "FixtureFetcher",
     "build_fetcher",

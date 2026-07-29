@@ -104,6 +104,38 @@ jobs:
       - name: Unit tests
         run: pytest -q
 
+      # Secrets 未登録のまま検索を走らせても最後に通知で失敗するだけなので、
+      # 実行前に確認する。値そのものは絶対に出力しない（要件4.4）。
+      - name: Check secrets
+        if: ${{ inputs.dry_run != true }}
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_TO_USER_ID: ${{ secrets.LINE_TO_USER_ID }}
+        run: |
+          missing=""
+          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ]; then
+            missing="$missing LINE_CHANNEL_ACCESS_TOKEN"
+          fi
+          if [ -z "$LINE_TO_USER_ID" ]; then
+            missing="$missing LINE_TO_USER_ID"
+          fi
+
+          if [ -n "$missing" ]; then
+            echo "NG: 未登録の Secrets:$missing"
+            echo ""
+            echo "登録場所: リポジトリの Settings > Secrets and variables > Actions"
+            echo "          > New repository secret"
+            echo "  ※ Environments / Codespaces ではなく Actions の Repository secrets"
+            exit 1
+          fi
+
+          echo "OK: Secrets を確認しました（値は表示しません）"
+          echo "  token  : ${#LINE_CHANNEL_ACCESS_TOKEN} 文字"
+          echo "  userId : ${#LINE_TO_USER_ID} 文字 / 先頭 '${LINE_TO_USER_ID:0:1}'"
+          echo ""
+          echo "  参考: userId は 'U' で始まる 33 文字が正常です。"
+          echo "        違う場合はチャネル基本設定の「あなたのユーザーID」を確認してください。"
+
       - name: Prepare artifact dir
         run: mkdir -p artifacts
 

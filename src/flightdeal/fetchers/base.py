@@ -17,6 +17,15 @@ class FetchError(RuntimeError):
     """取得失敗。路線単位の隔離（要件4.3）のため、上位はこれを捕捉して継続する。"""
 
 
+class BlockedError(FetchError):
+    """Bot判定・アクセス制限を検知（HTTP 429/403 / reCAPTCHA / unusual traffic 等）。
+
+    FetchError の一種なので既存の隔離処理はそのまま働くが、呼び出し側で
+    「これはIPを変えれば解決する種類の失敗」と区別してVPN切替の判断に使える。
+    通常の取得失敗（便が無い・一時的なネットワークエラー）とは別物として扱う。
+    """
+
+
 class FlightFetcher(ABC):
     """片道1検索を担う取得器。"""
 

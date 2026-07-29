@@ -53,19 +53,21 @@ def base_config(**overrides) -> dict:
 # --- 実 config.json は「壊れていないこと」だけを検証する ---
 
 
-def test_live_config_is_valid(cfg):
+def test_live_config_is_valid():
     """運用中の config.json が読めて検証を通ること。中身の値は固定しない。"""
-    assert cfg.origin
-    assert cfg.destinations
-    assert cfg.enabled_destinations, "有効な路線が1つもありません"
-    assert cfg.fetcher in VALID_FETCHERS
-    assert cfg.notifier in VALID_NOTIFIERS
+    live = load_config(CONFIG_PATH)
+    assert live.origin
+    assert live.destinations
+    assert live.enabled_destinations, "有効な路線が1つもありません"
+    assert live.fetcher in VALID_FETCHERS
+    assert live.notifier in VALID_NOTIFIERS
 
 
-def test_live_config_respects_search_limit(cfg):
+def test_live_config_respects_search_limit():
     """要件4.3: 有効路線数 × 週末数 × 2 が上限を超えないこと。"""
-    planned = len(cfg.enabled_destinations) * cfg.weekends_ahead * 2
-    assert planned <= cfg.search.max_searches_per_run
+    live = load_config(CONFIG_PATH)
+    planned = len(live.enabled_destinations) * live.weekends_ahead * 2
+    assert planned <= live.search.max_searches_per_run
 
 
 def test_live_config_is_utf8_json():

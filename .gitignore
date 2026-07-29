@@ -12,3 +12,7 @@ venv/
 # 実行時の生成物
 artifacts/
 *.log
+
+# VPN設定（WireGuardの秘密鍵を含みうる）
+VPN/
+*.conf

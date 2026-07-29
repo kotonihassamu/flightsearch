@@ -144,6 +144,62 @@ def test_flights_to_flight_falls_back_to_type_when_no_airline_name():
     assert flight.airline == "NH"
 
 
+def test_looks_blocked_by_status():
+    from flightdeal.fetchers.fast_flights_fetcher import looks_blocked
+
+    assert looks_blocked(429, "") is True
+    assert looks_blocked(403, "") is True
+    assert looks_blocked(200, "<html>flights</html>") is False
+
+
+def test_looks_blocked_by_markers():
+    from flightdeal.fetchers.fast_flights_fetcher import looks_blocked
+
+    assert looks_blocked(200, "Our systems have detected unusual traffic from your network") is True
+    assert looks_blocked(200, "通常と異なるトラフィックが検出されました") is True
+    assert looks_blocked(200, "普通の検索結果ページです") is False
+
+
+def test_looks_blocked_not_fooled_by_normal_page_noise():
+    """実測で誤検知した文言（2026-07-29）が正常ページ扱いのままであること。
+
+    Googleの正常ページには "/recaptcha/challenge"（JSルート定義）や
+    「複数のソースから価格を確認しています」（ローディング文言）が含まれる。
+    これらでブロック判定してはならない。
+    """
+    from flightdeal.fetchers.fast_flights_fetcher import looks_blocked
+
+    normal = (
+        '<script class="ds:1">data</script>'
+        '"/recaptcha/challenge","/recaptcha/challenge/*"'
+        "複数のソースから価格を確認しています..."
+    )
+    assert looks_blocked(200, normal) is False
+
+
+def test_looks_blocked_marker_with_data_is_not_blocked():
+    """ブロック文言らしきものがあっても、検索結果データ(ds:1)があれば正常扱い。"""
+    from flightdeal.fetchers.fast_flights_fetcher import looks_blocked
+
+    text = '<script class="ds:1">x</script> unusual traffic from your computer'
+    assert looks_blocked(200, text) is False
+
+
+def test_synthesized_stub_covers_unknown_routes():
+    """20空港のドライラン用: _SAMPLE に無い区間も便を返す。"""
+    flights = StubFetcher().fetch("HND", "WKJ", date(2026, 8, 1))  # 稚内
+    assert flights
+    assert all(f.price > 0 for f in flights)
+    # 決定的（同じ区間なら同じ結果）
+    again = StubFetcher().fetch("HND", "WKJ", date(2026, 8, 1))
+    assert [f.price for f in flights] == [f.price for f in again]
+
+
+def test_synthesize_can_be_disabled():
+    with pytest.raises(FetchError):
+        StubFetcher(synthesize=False).fetch("HND", "WKJ", date(2026, 8, 1))
+
+
 def test_import_failure_message_includes_real_cause():
     """「未インストール」と決めつけず、実際の例外内容を出すこと。
 

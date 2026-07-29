@@ -76,6 +76,23 @@ def test_raw_fixture_maps_to_flight():
             assert f.flight_date == flight_date
 
 
+def test_raw_fixture_is_not_flagged_as_blocked():
+    """実際に取得成功したHTMLがBot判定扱いにならないこと（誤検知の回帰防止）。
+
+    2026-07-29 に "recaptcha" と「を確認しています」で誤検知し、
+    IPを変えても全滅する障害が起きた。実物のHTMLで再発を防ぐ。
+    """
+    from flightdeal.fetchers.fast_flights_fetcher import looks_blocked
+
+    files = _raw_files()
+    if not files:
+        pytest.skip("実HTML未採取")
+
+    for path in files:
+        html = path.read_text(encoding="utf-8")
+        assert looks_blocked(200, html) is False, f"{path.name} が誤ってブロック判定された"
+
+
 def test_raw_fixture_prices_are_plausible_jpy():
     """価格が日本の国内線片道として妥当なレンジか（通貨取り違えの検知）。"""
     files = _raw_files()
