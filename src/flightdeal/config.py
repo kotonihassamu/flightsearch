@@ -43,6 +43,7 @@ class Config:
     fsc_airlines: list[str]
     rank_thresholds: dict[str, float]
     notify_top_n_per_route: int
+    notify_max_total: int
     fetcher: str
     notifier: str
     search: SearchPolicy
@@ -87,6 +88,7 @@ def _from_dict(raw: dict) -> Config:
         fsc_airlines=list(raw["fsc_airlines"]),
         rank_thresholds={k: float(v) for k, v in raw["rank_thresholds"].items()},
         notify_top_n_per_route=int(raw["notify_top_n_per_route"]),
+        notify_max_total=int(raw.get("notify_max_total", 0)),
         fetcher=raw.get("fetcher", "stub"),
         notifier=raw.get("notifier", "console"),
         search=SearchPolicy(
@@ -123,6 +125,11 @@ def validate_config(cfg: Config) -> None:
     overlap = set(cfg.lcc_airlines) & set(cfg.fsc_airlines)
     if overlap:
         raise ValueError(f"lcc_airlines と fsc_airlines が重複しています: {sorted(overlap)}")
+
+    if cfg.notify_top_n_per_route < 1:
+        raise ValueError("notify_top_n_per_route は1以上です")
+    if cfg.notify_max_total < 0:
+        raise ValueError("notify_max_total は0以上です（0=無制限）")
 
     planned = len(cfg.enabled_destinations) * cfg.weekends_ahead * 2
     if planned > cfg.search.max_searches_per_run:

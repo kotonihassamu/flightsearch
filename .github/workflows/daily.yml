@@ -1,9 +1,20 @@
 name: daily-flight-check
 
-# 要件4.1: JST 8:00 = UTC 23:00。GitHub Actions の cron は遅延を許容する仕様。
+# 1日2回、JST 7時前 と 19時前 に通知が届くようにする。
+#
+# cron は UTC。JST = UTC+9 なので:
+#   06:15 JST = 21:15 UTC（前日）
+#   18:15 JST = 09:15 UTC
+#
+# 【重要】GitHub Actions の cron は「その時刻以降に実行」であり、
+# 混雑時は数十分〜1時間遅れることがある（公式仕様。特に毎時0分は混む）。
+# そのため目標時刻の45分前に設定し、かつ :15 という半端な分にしてある。
+# 「必ず7時までに」という保証は Actions では不可能なので、
+# 確実性が要るならローカルのタスクスケジューラを使うこと。
 on:
   schedule:
-    - cron: "0 23 * * *"
+    - cron: "15 21 * * *"   # 06:15 JST → 7時前の通知
+    - cron: "15 9 * * *"    # 18:15 JST → 19時前の通知
   workflow_dispatch:
     inputs:
       dry_run:
@@ -21,7 +32,9 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 20空港×2週末＝80検索。待機込みで実測15分前後を見込み、余裕をとって45分。
+    # （GitHub Free の Actions 無料枠は private リポジトリで月2,000分）
+    timeout-minutes: 45
 
     env:
       PYTHONPATH: src

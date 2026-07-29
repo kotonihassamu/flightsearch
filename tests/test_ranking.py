@@ -81,3 +81,19 @@ def test_threshold_price_truncates_float_error():
     assert ranking.threshold_price(35000, 0.70) == 24500
     assert ranking.threshold_price(35000, 0.85) == 29750
     assert ranking.threshold_price(33000, 0.70) == 23100
+
+
+def test_limit_total_caps_across_routes():
+    """全路線通算の上限（多空港運用で通知が肥大化するのを防ぐ）。"""
+    combos = [
+        make_combination(total=30000, rank=Rank.B, route=HIJ),
+        make_combination(total=20000, rank=Rank.S, route=MYJ),
+        make_combination(total=25000, rank=Rank.A, route=HIJ, weekend=AUG2),
+    ]
+    top = ranking.limit_total(combos, 2)
+    assert [c.total_price for c in top] == [20000, 25000]
+
+
+def test_limit_total_zero_means_unlimited():
+    combos = [make_combination(total=t, rank=Rank.B) for t in (30000, 20000)]
+    assert len(ranking.limit_total(combos, 0)) == 2

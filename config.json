@@ -142,7 +142,7 @@
       "enabled": true
     }
   ],
-  "weekends_ahead": 1,
+  "weekends_ahead": 2,
   "time_filter": {
     "outbound_arrive_by": "11:00",
     "return_depart_after": "17:00"
@@ -165,7 +165,7 @@
     "S": 0.7,
     "A": 0.85
   },
-  "notify_top_n_per_route": 2,
+  "notify_top_n_per_route": 1,
   "fetcher": "fast_flights",
   "search": {
     "max_searches_per_run": 100,
@@ -185,5 +185,6 @@
     "home_org_hint": "",
     "wireguard_exe": "",
     "switch_timeout": 40
-  }
+  },
+  "notify_max_total": 12
 }

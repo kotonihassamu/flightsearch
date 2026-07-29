@@ -150,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         notified = _notify(notifier, formatter.format_failure(result))
         return 2 if notified else 3
 
-    body = formatter.format_run(result)
+    body = formatter.format_run(result, max_total=cfg.notify_max_total)
     if not body:
         log.info("run_no_deal", extra={"elapsed": result.elapsed_seconds})
         return 0

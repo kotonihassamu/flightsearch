@@ -37,6 +37,21 @@ def _sort_key(combo: Combination) -> tuple[int, object]:
     return combo.total_price, combo.outbound.depart_time
 
 
+def limit_total(combinations: list[Combination], n: int) -> list[Combination]:
+    """全路線を通した上位N件に絞る（安い順）。
+
+    多空港運用で通知が肥大化するのを防ぐための全体上限。
+    n <= 0 なら無制限（そのまま返す）。
+
+    路線ごとの上限（top_n_per_route）とは別の軸であることに注意:
+      - top_n_per_route … 1路線が通知を占有しないようにする
+      - limit_total      … 通知全体をLINE1通に収める
+    """
+    if n <= 0:
+        return list(combinations)
+    return sorted(combinations, key=_sort_key)[:n]
+
+
 def top_n_per_route(combinations: list[Combination], n: int) -> list[Combination]:
     """同一路線・同一週末でランク入りが複数ある場合、安い順に上位N件へ絞る。
 

@@ -97,21 +97,37 @@ def _flight_no(number: str | None) -> str:
 _RANK_ORDER = {Rank.S: 0, Rank.A: 1, Rank.B: 2, Rank.NONE: 3}
 
 
-def format_run(result: RunResult) -> str:
+def format_run(result: RunResult, max_total: int = 0) -> str:
     """全結果を1通に集約した本文を返す（要件3.6 集約）。
 
+    Args:
+        result: 実行結果
+        max_total: 通知する最大件数（全路線通算）。0 なら無制限。
+                   多空港運用でLINEの文字数上限を超えないための全体上限。
+
     ランク入りが0件なら空文字を返す。呼び出し側は通知しない。
+    上限で省略した場合は「他N件」と本文に明記する（黙って捨てない）。
     """
-    combos = result.notifiable
-    if not combos:
+    from .ranking import limit_total
+
+    all_combos = result.notifiable
+    if not all_combos:
         return ""
 
+    combos = limit_total(all_combos, max_total)
+    omitted = len(all_combos) - len(combos)
+
+    # 表示順は安い順（多空港だと路線順よりお得順のほうが実用的）
     combos = sorted(
         combos,
-        key=lambda c: (c.route.iata, c.weekend.index, c.total_price, c.outbound.depart_time),
+        key=lambda c: (c.total_price, c.route.iata, c.weekend.index, c.outbound.depart_time),
     )
 
-    header = f"週末の格安便が {len(combos)}件 見つかりました"
+    if omitted > 0:
+        header = f"週末の格安便が {len(all_combos)}件（安い順に {len(combos)}件を表示 / 他 {omitted}件）"
+    else:
+        header = f"週末の格安便が {len(combos)}件 見つかりました"
+
     blocks = [header] + [format_combination(c) for c in combos] + [FOOTER]
     return BLOCK_SEPARATOR.join(blocks)
 

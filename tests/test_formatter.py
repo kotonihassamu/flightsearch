@@ -113,3 +113,26 @@ def test_split_message_hard_splits_oversized_block():
     text = "y" * 250
     chunks = formatter.split_message(text, 100)
     assert [len(c) for c in chunks] == [100, 100, 50]
+
+
+def test_format_run_respects_max_total_and_says_omitted():
+    """上限で省略したら「他N件」と明記する（黙って捨てない）。"""
+    result = RunResult()
+    rr = RouteResult(route=HIJ, weekend=AUG1)
+    rr.combinations = [make_combination(total=t, rank=Rank.A) for t in (30000, 22000, 26000)]
+    result.results.append(rr)
+
+    text = formatter.format_run(result, max_total=2)
+    assert "他 1件" in text
+    assert "￥22,000" in text
+    assert "￥30,000" not in text  # 上限で外れた分は載らない
+
+
+def test_format_run_sorted_cheapest_first():
+    result = RunResult()
+    rr = RouteResult(route=HIJ, weekend=AUG1)
+    rr.combinations = [make_combination(total=t, rank=Rank.A) for t in (30000, 22000)]
+    result.results.append(rr)
+
+    text = formatter.format_run(result)
+    assert text.index("￥22,000") < text.index("￥30,000")
