@@ -1,0 +1,129 @@
+name: search
+
+# 出発日・帰着日を指定して航空券を検索する（手動実行のみ）。
+# 週末縛りなし。連休・平日・連泊・日帰りいずれも可。
+#
+# 実行方法:
+#   Actions タブ → 左メニュー "search" → 右上 "Run workflow"
+#   → 出発日・帰着日を入力 → 緑の Run workflow
+#
+# 結果の受け取り方:
+#   - notify を ON にすると LINE に届く（既定 ON）
+#   - 実行ページ下部の Artifacts から全文レポート（検索結果.txt）をダウンロード
+#   - ログの末尾にもレポート全文が出る
+
+on:
+  workflow_dispatch:
+    inputs:
+      out_date:
+        description: "出発日 (YYYY-MM-DD 例 2026-09-19)"
+        type: string
+        required: true
+      back_date:
+        description: "帰着日 (YYYY-MM-DD 例 2026-09-22)"
+        type: string
+        required: true
+      dest:
+        description: "行き先をIATAでスペース区切り（例 OKA ISG MMY）。空なら有効な全空港"
+        type: string
+        default: ""
+      top:
+        description: "各行き先で表示する候補数"
+        type: string
+        default: "3"
+      time_filter:
+        description: "時間帯の絞り込み"
+        type: choice
+        options:
+          - "指定なし（全便）"
+          - "弾丸日程（朝までに到着・夕方以降に出発）"
+        default: "指定なし（全便）"
+      notify:
+        description: "結果をLINEに送る"
+        type: boolean
+        default: true
+
+concurrency:
+  group: search
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    # 全43空港でも 86検索。待機込みで約12分。余裕をとって60分。
+    timeout-minutes: 60
+
+    env:
+      PYTHONPATH: src
+      TZ: Asia/Tokyo
+      PYTHONUTF8: "1"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check secrets
+        if: ${{ inputs.notify == true }}
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_TO_USER_ID: ${{ secrets.LINE_TO_USER_ID }}
+        run: |
+          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_TO_USER_ID" ]; then
+            echo "NG: Secrets が未登録です（Settings > Secrets and variables > Actions）"
+            exit 1
+          fi
+          echo "OK: Secrets を確認しました"
+
+      - name: Run search
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_TO_USER_ID: ${{ secrets.LINE_TO_USER_ID }}
+        run: |
+          ARGS="--out ${{ inputs.out_date }} --back ${{ inputs.back_date }}"
+          ARGS="$ARGS --top ${{ inputs.top }} --save 検索結果.txt"
+
+          if [ -n "${{ inputs.dest }}" ]; then
+            ARGS="$ARGS --dest ${{ inputs.dest }}"
+          fi
+          if [ "${{ inputs.time_filter }}" = "弾丸日程（朝までに到着・夕方以降に出発）" ]; then
+            ARGS="$ARGS --weekend-hours"
+          fi
+          if [ "${{ inputs.notify }}" = "true" ]; then
+            ARGS="$ARGS --line"
+          fi
+
+          echo "実行: python scripts/search.py $ARGS"
+
+          # 終了コード 2 = 「条件に合う便が0件」。手動検索では正常な結果なので
+          # ジョブは成功扱いにする（赤くしない）。1=引数エラー / 3=LINE失敗 は失敗。
+          set +e
+          python scripts/search.py $ARGS
+          code=$?
+          set -e
+
+          if [ "$code" = "2" ]; then
+            echo "::notice::条件に合う便は見つかりませんでした（検索自体は正常に完了）"
+            exit 0
+          fi
+          exit $code
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-${{ inputs.out_date }}-${{ inputs.back_date }}
+          path: 検索結果.txt
+          retention-days: 30
+          if-no-files-found: warn

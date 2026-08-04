@@ -95,6 +95,36 @@ def external_ip_info(timeout: int = 8) -> tuple[str | None, str | None, str | No
         return None, None, None
 
 
+def fetch_with_rotation(fetcher, vpn, origin: str, destination: str, day,
+                        max_rotations: int = 3):
+    """取得する。Bot判定なら VPN を切り替えて再試行する。
+
+    survey / search など複数のスクリプトから使う共通処理。
+    BlockedError（Bot判定）だけを切替対象にする。通常の取得失敗は
+    IPを変えても直らないので、そのまま送出して上位の隔離処理に任せる。
+
+    Args:
+        fetcher: FlightFetcher
+        vpn: VpnController または None（None なら切替せず送出）
+        max_rotations: 何回まで切り替えて粘るか
+    """
+    from .fetchers.base import BlockedError
+
+    for attempt in range(max_rotations + 1):
+        try:
+            return fetcher.fetch(origin, destination, day)
+        except BlockedError:
+            if vpn is None or attempt == max_rotations:
+                raise
+            new_ip = vpn.rotate()
+            if not new_ip:
+                raise
+            # 新しいIPで張り直す（古いセッションは前のIPに紐づいている）
+            fetcher.close()
+
+    raise RuntimeError("unreachable")
+
+
 @dataclass
 class VpnController:
     """VPNの状態確認と切替を担う。"""

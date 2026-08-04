@@ -37,11 +37,11 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from flightdeal import filters, pricing, ranking  # noqa: E402
 from flightdeal.config import load_config  # noqa: E402
-from flightdeal.fetchers import BlockedError, FetchError  # noqa: E402
+from flightdeal.fetchers import FetchError  # noqa: E402
 from flightdeal.fetchers.fast_flights_fetcher import FastFlightsFetcher  # noqa: E402
 from flightdeal.logging_setup import ensure_console_encoding  # noqa: E402
 from flightdeal.models import Combination, Rank, RouteConfig, WeekendDates  # noqa: E402
-from flightdeal.vpn import VpnController  # noqa: E402
+from flightdeal.vpn import VpnController, fetch_with_rotation  # noqa: E402
 from flightdeal.weekend import next_saturday  # noqa: E402
 
 
@@ -86,28 +86,12 @@ def cheapest(combos: list[Combination]) -> Combination | None:
     return min(combos, key=lambda c: c.total_price) if combos else None
 
 
-def fetch_with_rotation(fetcher, vpn, origin, dest, day, cfg, max_rotations=3):
-    """取得する。Bot判定なら VPN を切り替えて最大 max_rotations 回まで再試行する。"""
-    for attempt in range(max_rotations + 1):
-        try:
-            return fetcher.fetch(origin, dest, day)
-        except BlockedError as e:
-            if vpn is None or attempt == max_rotations:
-                raise
-            print(f"    Bot判定: {e}")
-            new_ip = vpn.rotate()
-            if not new_ip:
-                raise
-            fetcher.close()  # 新しいIPで新しいセッションを張り直す
-    raise BlockedError("rotation exhausted")  # 到達しない
-
-
 def survey_one(fetcher, route: RouteConfig, weekend: WeekendDates, cfg, vpn=None) -> Result:
     result = Result(route=route, weekend=weekend)
     try:
-        outs = fetch_with_rotation(fetcher, vpn, cfg.origin, route.iata, weekend.saturday, cfg)
+        outs = fetch_with_rotation(fetcher, vpn, cfg.origin, route.iata, weekend.saturday)
         sleep_politely(cfg)
-        ins = fetch_with_rotation(fetcher, vpn, route.iata, cfg.origin, weekend.sunday, cfg)
+        ins = fetch_with_rotation(fetcher, vpn, route.iata, cfg.origin, weekend.sunday)
     except FetchError as e:
         result.error = str(e)
         return result

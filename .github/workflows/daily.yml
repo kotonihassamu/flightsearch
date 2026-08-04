@@ -1,26 +1,40 @@
 name: daily-flight-check
 
-# 1日2回、JST 7時前 と 19時前 に通知が届くようにする。
+# 1日2回、JST 7時前 と 18時前 に通知を届ける。
 #
-# cron は UTC。JST = UTC+9 なので:
-#   06:15 JST = 21:15 UTC（前日）
-#   18:15 JST = 09:15 UTC
+# 【重要】GitHub の schedule(cron) は使わない。
 #
-# 【重要】GitHub Actions の cron は「その時刻以降に実行」であり、
-# 混雑時は数十分〜1時間遅れることがある（公式仕様。特に毎時0分は混む）。
-# そのため目標時刻の45分前に設定し、かつ :15 という半端な分にしてある。
-# 「必ず7時までに」という保証は Actions では不可能なので、
-# 確実性が要るならローカルのタスクスケジューラを使うこと。
+# 理由（2026-08 実測）: schedule は他の全ジョブと同じキューに入り、専用の
+# 実行枠が無いため、混雑時に大きく遅延する。実際の遅延は次のとおりだった。
+#     予定 06:15 → 実際 07:12〜07:28（57〜73分遅れ）
+#     予定 18:15 → 実際 19:48〜21:35（93分〜3時間20分遅れ）
+# GitHub公式も「schedule は高負荷時に遅延しうる」と明記している。
+# 45分の余裕を見ても足りず、「必ず7時前」は schedule では実現できない。
+#
+# 対策: 時計を GitHub の外に出す。外部のcronサービス(cron-job.org 等)から
+# repository_dispatch を叩く。dispatch 由来の実行はキュー待ちがほぼ無く、
+# API 呼び出しから数秒で開始する。設定手順は docs/定時実行の設定.md 。
+#
+#   morning  … 7時前の通知用（06:10 JST に叩く）
+#   evening  … 18時前の通知用（17:10 JST に叩く）
+#   run-now  … 任意のタイミングで1回動かす
 on:
-  schedule:
-    - cron: "15 21 * * *"   # 06:15 JST → 7時前の通知
-    - cron: "15 9 * * *"    # 18:15 JST → 19時前の通知
+  repository_dispatch:
+    types: [morning, evening, run-now]
   workflow_dispatch:
     inputs:
       dry_run:
         description: "StubFetcher + コンソール通知で実行（外部接続なし）"
         type: boolean
         default: false
+
+  # 保険としての schedule（既定は無効）。
+  # 外部cronが止まったときに「何も来ない」より「遅れて来る」ほうがマシ、
+  # と考えるならコメントを外す。ただし外部cronと二重に通知が飛ぶ点に注意
+  # （LINE無料枠200通/月を消費する）。
+  # schedule:
+  #   - cron: "10 21 * * *"   # 06:10 JST（遅延するので当てにしない）
+  #   - cron: "10 8 * * *"    # 17:10 JST
 
 concurrency:
   group: daily-flight-check
@@ -32,7 +46,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    # 20空港×2週末＝80検索。待機込みで実測15分前後を見込み、余裕をとって45分。
+    # 43空港×2週末＝172検索。実測で約24分。余裕をとって45分。
     # （GitHub Free の Actions 無料枠は private リポジトリで月2,000分）
     timeout-minutes: 45
 
@@ -45,6 +59,16 @@ jobs:
       PYTHONUTF8: "1"
 
     steps:
+      # 何が起動したのか・どれくらい遅れたのかを毎回ログに残す。
+      # schedule の遅延問題を追いかけるために必要（外部cronに移した経緯がある）。
+      - name: Trigger info
+        run: |
+          echo "起動イベント : ${{ github.event_name }}"
+          echo "種別         : ${{ github.event.action }}"
+          echo "現在時刻(JST): $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          echo "実行に約24分かかるため、通知が届くのは上記のおよそ25分後です。"
+
       - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
