@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import date
 
 from flightdeal import formatter
-from flightdeal.models import Rank, RouteResult, RunResult
+from flightdeal.models import Rank, RouteConfig, RouteResult, RunResult
 
-from .conftest import AUG1, HIJ, make_combination, make_flight
+from .conftest import AUG1, AUG8, HIJ, MYJ, make_combination, make_flight
 
 
 def test_format_date_range():
@@ -136,3 +136,74 @@ def test_format_run_sorted_cheapest_first():
 
     text = formatter.format_run(result)
     assert text.index("￥22,000") < text.index("￥30,000")
+
+
+def _no_deal_result(*specs):
+    """(route, weekend, cheapest, error) から RunResult を作る。"""
+    result = RunResult()
+    for route, weekend, cheapest, error in specs:
+        rr = RouteResult(route=route, weekend=weekend)
+        rr.cheapest_total = cheapest
+        rr.error = error
+        result.results.append(rr)
+    return result
+
+
+def test_no_deal_message_states_search_succeeded():
+    """0件でも「検索は正常」と伝える（止まっているのと区別できるように）。"""
+    result = _no_deal_result((HIJ, AUG1, 43270, None), (MYJ, AUG1, 66570, None))
+    msg = formatter.format_no_deal(result)
+
+    assert "【該当なし】" in msg
+    assert "検索は正常に完了" in msg
+    assert "2件すべて成功" in msg
+    assert "8/1(土)〜8/2(日)" in msg
+
+
+def test_no_deal_lists_closest_routes_with_gap():
+    """相場との差が分かる（あと少しなのか、かけ離れているのか）。"""
+    result = _no_deal_result((HIJ, AUG1, 43270, None), (MYJ, AUG1, 66570, None))
+    msg = formatter.format_no_deal(result)
+
+    assert "￥43,270" in msg
+    assert "￥35,000" in msg
+    assert "+24%" in msg          # 43270/35000 → 約+24%
+    # 相場に近い順（広島のほうが近い）
+    assert msg.index("広島") < msg.index("松山")
+
+
+def test_no_deal_dedupes_by_route():
+    """同じ路線が週末ぶん重複しない（最良の1件だけ）。"""
+    result = _no_deal_result(
+        (HIJ, AUG1, 50000, None),
+        (HIJ, AUG8, 43270, None),   # こちらのほうが相場に近い
+    )
+    msg = formatter.format_no_deal(result)
+
+    assert msg.count("広島") == 1
+    assert "￥43,270" in msg
+    assert "￥50,000" not in msg
+
+
+def test_no_deal_reports_partial_failures():
+    result = _no_deal_result((HIJ, AUG1, 43270, None), (MYJ, AUG1, None, "取得失敗"))
+    msg = formatter.format_no_deal(result)
+    assert "失敗1" in msg
+
+
+def test_no_deal_when_time_filter_leaves_nothing():
+    """時間帯条件で全滅した場合は原因の候補を示す。"""
+    result = _no_deal_result((HIJ, AUG1, None, None))
+    msg = formatter.format_no_deal(result)
+    assert "time_filter" in msg
+
+
+def test_no_deal_fits_one_line_message():
+    """43路線でもLINE1通に収まる。"""
+    specs = []
+    for i in range(43):
+        route = RouteConfig(iata=f"X{i:02d}", name=f"空港{i}", market_price=40000,
+                            max_price=34000, enabled=True)
+        specs.append((route, AUG1, 45000 + i * 100, None))
+    msg = formatter.format_no_deal(_no_deal_result(*specs))
+    assert len(formatter.split_message(msg)) == 1

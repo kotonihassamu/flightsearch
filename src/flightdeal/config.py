@@ -44,6 +44,7 @@ class Config:
     rank_thresholds: dict[str, float]
     notify_top_n_per_route: int
     notify_max_total: int
+    notify_when_no_deal: bool
     fetcher: str
     notifier: str
     search: SearchPolicy
@@ -89,6 +90,7 @@ def _from_dict(raw: dict) -> Config:
         rank_thresholds={k: float(v) for k, v in raw["rank_thresholds"].items()},
         notify_top_n_per_route=int(raw["notify_top_n_per_route"]),
         notify_max_total=int(raw.get("notify_max_total", 0)),
+        notify_when_no_deal=bool(raw.get("notify_when_no_deal", False)),
         fetcher=raw.get("fetcher", "stub"),
         notifier=raw.get("notifier", "console"),
         search=SearchPolicy(

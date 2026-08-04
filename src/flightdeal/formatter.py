@@ -132,6 +132,77 @@ def format_run(result: RunResult, max_total: int = 0) -> str:
     return BLOCK_SEPARATOR.join(blocks)
 
 
+def format_no_deal(result: RunResult, max_routes: int = 8) -> str:
+    """該当便が0件だったときの通知本文。
+
+    「通知が来ない」と「システムが止まっている」は利用者から見分けがつかない。
+    0件でも1通送り、**検索は正常に動いた上で条件に合わなかった**ことを示す。
+
+    単に「ありませんでした」だけでは判断材料にならないので、
+    相場に最も近かった路線を並べる。これで「あと少し」なのか
+    「相場設定が実勢とかけ離れている」のかが分かる。
+    """
+    searched = len(result.results)
+    failed = [r for r in result.results if r.failed]
+
+    # 検索した週末（重複を除く）
+    weekends = []
+    for r in result.results:
+        key = (r.weekend.saturday, r.weekend.sunday)
+        if key not in weekends:
+            weekends.append(key)
+    span = " / ".join(format_date_range(sat, sun) for sat, sun in weekends[:2])
+
+    lines = [f"【該当なし】週末の格安便 {span}", ""]
+    lines.append("条件に合うお得な便はありませんでした。")
+    lines.append(
+        f"検索は正常に完了しています（{searched}件中 失敗{len(failed)}）。"
+        if failed else
+        f"検索は正常に完了しています（{searched}件すべて成功）。"
+    )
+    lines.append("")
+
+    # 相場に近かった順（＝あと少しで通知される路線）。
+    # 同じ路線が週末ぶん重複すると一覧の情報量が落ちるので、路線ごとに最良の1件に絞る。
+    best_per_route: dict[str, object] = {}
+    for r in result.results:
+        if r.failed or not r.cheapest_total or r.route.market_price <= 0:
+            continue
+        ratio = r.cheapest_total / r.route.market_price
+        current = best_per_route.get(r.route.iata)
+        if current is None or ratio < current.cheapest_total / current.route.market_price:
+            best_per_route[r.route.iata] = r
+
+    candidates = sorted(
+        best_per_route.values(),
+        key=lambda r: r.cheapest_total / r.route.market_price,
+    )
+
+    if candidates:
+        lines.append("相場に近かった順:")
+        for r in candidates[:max_routes]:
+            over = r.cheapest_total - r.route.market_price
+            pct = round(abs(over) / r.route.market_price * 100)
+            mark = f"+{pct}%" if over > 0 else f"-{pct}%"
+            lines.append(
+                f"  {r.route.name} {r.weekend.saturday:%-m/%-d} "
+                f"{yen(r.cheapest_total)}（相場 {yen(r.route.market_price)} {mark}）"
+            )
+        remaining = len(candidates) - max_routes
+        if remaining > 0:
+            lines.append(f"  …他 {remaining}件")
+    else:
+        lines.append("時間帯の条件を満たす便が1つもありませんでした。")
+        lines.append("（time_filter が厳しすぎる可能性があります）")
+
+    lines += [
+        "",
+        "※お得と判定されるには相場を下回る必要があります。",
+        "※相場が実勢と合っていない場合は config.json で調整できます。",
+    ]
+    return "\n".join(lines)
+
+
 def format_failure(result: RunResult) -> str:
     """全路線失敗時の障害通知本文（要件4.3 サイレント障害防止）。
 

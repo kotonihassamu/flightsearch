@@ -347,5 +347,6 @@
     "home_org_hint": "",
     "wireguard_exe": "",
     "switch_timeout": 40
-  }
+  },
+  "notify_when_no_deal": true
 }

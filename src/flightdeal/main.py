@@ -153,6 +153,11 @@ def main(argv: list[str] | None = None) -> int:
     body = formatter.format_run(result, max_total=cfg.notify_max_total)
     if not body:
         log.info("run_no_deal", extra={"elapsed": result.elapsed_seconds})
+        # 0件でも通知する設定なら「該当なし」を1通送る。
+        # 通知が来ないと「止まっているのか条件に合わないのか」が利用者に分からないため。
+        if cfg.notify_when_no_deal:
+            if not _notify(notifier, formatter.format_no_deal(result)):
+                return 3
         return 0
 
     if not _notify(notifier, body):
