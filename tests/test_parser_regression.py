@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from flightdeal.fetchers.fast_flights_fetcher import flights_to_flight
+from flightdeal.fetchers.fast_flights_fetcher import flights_to_flight, parse_flights_html
 
 RAW_DIR = Path(__file__).resolve().parent / "fixtures" / "raw"
 
@@ -28,10 +28,11 @@ def _raw_files() -> list[Path]:
 
 def _parse_or_skip(path: Path):
     try:
-        from fast_flights.parser import parse
+        import fast_flights  # noqa: F401
     except ImportError:
         pytest.skip("fast-flights 未導入のためスキップ")
-    return parse(path.read_text(encoding="utf-8"))
+    result, _ = parse_flights_html(path.read_text(encoding="utf-8"))
+    return result
 
 
 def _meta_from_name(path: Path) -> tuple[str, str, date]:

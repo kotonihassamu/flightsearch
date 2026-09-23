@@ -28,6 +28,7 @@ fast-flights 3.x の使い方（2系から全面変更されている）:
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date, time
 
@@ -120,6 +121,64 @@ def _load_fast_flights():
         raise FetchError(import_failure_message(e)) from e
 
     return FlightQuery, Passengers, create_filter, parse, FlightsNotFound
+
+
+def parse_flights_html(html: str) -> tuple[list[object], int]:
+    """Google Flights のHTMLを解析し、価格なしの表示行だけを除外する。
+
+    Google Flights は2026-09以降、通常の検索結果に価格が空の便を混ぜて返すことがある。
+    fast-flights 3.0.2 はその行を ``k[1][0][1]`` として無条件に読むため、価格付きの
+    正常な便が同じページにあっても ``IndexError`` / ``TypeError`` で全件を失う。
+
+    まず上流パーサをそのまま使い、既知の構造エラーが出た場合だけ ``ds:1`` のJSONから
+    価格なし行を除いて再解析する。価格以外の構造変化は握りつぶさず、元の例外を返す。
+
+    Returns:
+        (解析結果, 除外した価格なし行数)
+    """
+    _, _, _, parse, _ = _load_fast_flights()
+
+    try:
+        return list(parse(html)), 0
+    except (IndexError, TypeError) as original_error:
+        try:
+            from fast_flights.parser import parse_js
+            from selectolax.lexbor import LexborHTMLParser
+
+            script = LexborHTMLParser(html).css_first(r"script.ds\:1")
+            if script is None:
+                raise original_error
+            js = script.text()
+            data = js.split("data:", 1)[1].rsplit(",", 1)[0]
+            payload = json.loads(data)
+            rows = payload[3][0]
+            if not isinstance(rows, list):
+                raise original_error
+
+            priced_rows = []
+            skipped = 0
+            for row in rows:
+                try:
+                    price = row[1][0][1]
+                except (IndexError, TypeError):
+                    skipped += 1
+                    continue
+                if price is None:
+                    skipped += 1
+                    continue
+                priced_rows.append(row)
+
+            # 価格なし行が原因でない構造エラーは、従来どおり障害として扱う。
+            if skipped == 0:
+                raise original_error
+
+            payload[3][0] = priced_rows
+            sanitized_js = "data:" + json.dumps(
+                payload, ensure_ascii=False, separators=(",", ":")
+            ) + ","
+            return list(parse_js(sanitized_js)), skipped
+        except (IndexError, TypeError, KeyError, ValueError, json.JSONDecodeError):
+            raise original_error
 
 
 def to_time(parts: object) -> time:
@@ -265,13 +324,13 @@ class FastFlightsFetcher(FlightFetcher):
         return resp.text
 
     def fetch(self, origin: str, destination: str, flight_date: date) -> list[Flight]:
-        _, _, _, parse, FlightsNotFound = _load_fast_flights()
+        _, _, _, _, FlightsNotFound = _load_fast_flights()
 
         html = self.fetch_html(origin, destination, flight_date)
         label = f"{origin}-{destination}-{flight_date.isoformat()}"
 
         try:
-            result = parse(html)
+            result, unpriced = parse_flights_html(html)
         except FlightsNotFound:
             # その日に便が無いのは異常ではない。空リストを返す。
             log.info(
@@ -290,6 +349,17 @@ class FastFlightsFetcher(FlightFetcher):
                 + (f"。生HTMLを保存: {saved}" if saved else "")
                 + "）"
             ) from e
+
+        if unpriced:
+            log.info(
+                "unpriced_flights_skipped",
+                extra={
+                    "segment": f"{origin}-{destination}",
+                    "date": flight_date.isoformat(),
+                    "skipped": unpriced,
+                    "priced": len(result),
+                },
+            )
 
         flights: list[Flight] = []
         excluded = 0

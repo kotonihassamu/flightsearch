@@ -86,7 +86,7 @@ def main() -> int:
     for f in flights:
         no = f" / {f.flight_number}" if f.flight_number else ""
         print(f"  - {f.airline:<10} {f.depart_time.strftime('%H:%M')} 発 "
-              f"→ {f.arrive_time.strftime('%H:%M')} 着  ¥{f.price:,}{no}")
+              f"→ {f.arrive_time.strftime('%H:%M')} 着  ￥{f.price:,}{no}")
 
     print("\nチェックリスト（要件2 完了条件）:")
     print("  [ ] 航空会社名が取れているか")

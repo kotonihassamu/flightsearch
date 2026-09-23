@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from flightdeal.fetchers.fast_flights_fetcher import (
     FastFlightsFetcher,
     flights_to_flight,
+    parse_flights_html,
     to_time,
 )
 from flightdeal.fetchers.stub import FixtureFetcher, StubFetcher
@@ -213,3 +214,39 @@ def test_import_failure_message_includes_real_cause():
     assert "ImportError" in msg
     assert "cannot import name 'FlightQuery'" in msg  # 本当の原因が残る
     assert "3.x" in msg                                # 対処のヒント
+
+
+def test_parser_skips_unpriced_rows_without_losing_priced_flights():
+    """価格なしの表示行が混ざっても、同じページの価格付き便を取得する。"""
+    import copy
+    import json
+    from pathlib import Path
+
+    from fast_flights.parser import parse
+    from selectolax.lexbor import LexborHTMLParser
+
+    raw = (
+        Path(__file__).parent / "fixtures" / "raw" / "HND-HIJ-2026-08-01.html"
+    ).read_text(encoding="utf-8")
+    baseline = list(parse(raw))
+
+    document = LexborHTMLParser(raw)
+    script = document.css_first(r"script.ds\:1")
+    assert script is not None
+    original_js = script.text()
+    payload = json.loads(original_js.split("data:", 1)[1].rsplit(",", 1)[0])
+
+    unpriced = copy.deepcopy(payload[3][0][0])
+    unpriced[1] = [[], "no-price-token"]
+    payload[3][0].append(unpriced)
+    broken_js = "data:" + json.dumps(
+        payload, ensure_ascii=False, separators=(",", ":")
+    ) + ","
+    broken_html = raw.replace(original_js, broken_js, 1)
+
+    with pytest.raises(IndexError):
+        parse(broken_html)
+
+    result, skipped = parse_flights_html(broken_html)
+    assert skipped == 1
+    assert len(result) == len(baseline)
