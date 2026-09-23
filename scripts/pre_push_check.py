@@ -38,7 +38,12 @@ MAX_FILE_MB = 10
 def git(*args: str) -> tuple[int, str]:
     try:
         proc = subprocess.run(
-            ["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=30
+            ["git", *args],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=30,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         return 1, str(e)

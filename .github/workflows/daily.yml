@@ -2,7 +2,7 @@ name: daily-flight-check
 
 # 1日2回、JST 7時前 と 18時前 に通知を届ける。
 #
-# 【重要】GitHub の schedule(cron) は使わない。
+# 通常は外部cronから repository_dispatch を受ける。
 #
 # 理由（2026-08 実測）: schedule は他の全ジョブと同じキューに入り、専用の
 # 実行枠が無いため、混雑時に大きく遅延する。実際の遅延は次のとおりだった。
@@ -12,8 +12,10 @@ name: daily-flight-check
 # 45分の余裕を見ても足りず、「必ず7時前」は schedule では実現できない。
 #
 # 対策: 時計を GitHub の外に出す。外部のcronサービス(cron-job.org 等)から
-# repository_dispatch を叩く。dispatch 由来の実行はキュー待ちがほぼ無く、
-# API 呼び出しから数秒で開始する。設定手順は docs/定時実行の設定.md 。
+# repository_dispatch を叩く。さらに外部cron自体が止まった場合に備え、30分後に
+# GitHub schedule をフォールバックとして起動する。直近2時間に外部起動があれば
+# preflight が検知して検索をスキップするため、通常時は二重通知にならない。
+# 設定手順は docs/定時実行の設定.md 。
 #
 #   morning  … 7時前の通知用（06:10 JST に叩く）
 #   evening  … 18時前の通知用（17:10 JST に叩く）
@@ -27,24 +29,65 @@ on:
         description: "StubFetcher + コンソール通知で実行（外部接続なし）"
         type: boolean
         default: false
-
-  # 保険としての schedule（既定は無効）。
-  # 外部cronが止まったときに「何も来ない」より「遅れて来る」ほうがマシ、
-  # と考えるならコメントを外す。ただし外部cronと二重に通知が飛ぶ点に注意
-  # （LINE無料枠200通/月を消費する）。
-  # schedule:
-  #   - cron: "10 21 * * *"   # 06:10 JST（遅延するので当てにしない）
-  #   - cron: "10 8 * * *"    # 17:10 JST
+  # 外部cronの30分後に起動する保険。preflight で二重実行を防ぐ。
+  schedule:
+    - cron: "30 21 * * *"   # 06:30 JST（morning のフォールバック）
+    - cron: "30 8 * * *"    # 17:30 JST（evening のフォールバック）
 
 concurrency:
   group: daily-flight-check
   cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+    steps:
+      - name: Decide whether fallback is needed
+        id: decide
+        uses: actions/github-script@v9
+        with:
+          script: |
+            if (context.eventName !== 'schedule') {
+              core.info(`Primary trigger: ${context.eventName}`)
+              core.setOutput('should_run', 'true')
+              return
+            }
+
+            const cutoff = Date.now() - 2 * 60 * 60 * 1000
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'daily.yml',
+              event: 'repository_dispatch',
+              per_page: 10,
+            })
+            const recentPrimary = data.workflow_runs.find((run) => {
+              const recent = new Date(run.created_at).getTime() >= cutoff
+              const healthy = run.status !== 'completed' || run.conclusion === 'success'
+              return recent && healthy
+            })
+
+            if (recentPrimary) {
+              core.info(
+                `Recent external trigger found (${recentPrimary.status}, ${recentPrimary.html_url}); ` +
+                'scheduled fallback will be skipped.'
+              )
+              core.setOutput('should_run', 'false')
+              return
+            }
+
+            core.warning('No healthy external trigger in the last 2 hours; running scheduled fallback.')
+            core.setOutput('should_run', 'true')
+
   run:
+    needs: preflight
+    if: needs.preflight.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     # 43空港×2週末＝172検索。実測で約24分。余裕をとって45分。
     # （GitHub Free の Actions 無料枠は private リポジトリで月2,000分）

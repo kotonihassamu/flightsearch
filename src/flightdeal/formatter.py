@@ -185,7 +185,8 @@ def format_no_deal(result: RunResult, max_routes: int = 8) -> str:
             pct = round(abs(over) / r.route.market_price * 100)
             mark = f"+{pct}%" if over > 0 else f"-{pct}%"
             lines.append(
-                f"  {r.route.name} {r.weekend.saturday:%-m/%-d} "
+                f"  {r.route.name} "
+                f"{r.weekend.saturday.month}/{r.weekend.saturday.day} "
                 f"{yen(r.cheapest_total)}（相場 {yen(r.route.market_price)} {mark}）"
             )
         remaining = len(candidates) - max_routes
