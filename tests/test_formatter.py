@@ -207,3 +207,24 @@ def test_no_deal_fits_one_line_message():
         specs.append((route, AUG1, 45000 + i * 100, None))
     msg = formatter.format_no_deal(_no_deal_result(*specs))
     assert len(formatter.split_message(msg)) == 1
+
+
+
+def test_format_combination_notes_carry_on_fee_fare():
+    """機内持ち込みが別料金の運賃で補正したときは、その理由を本文に出す。"""
+    from dataclasses import replace as _replace
+
+    combo = make_combination(
+        total=17600,
+        rank=Rank.A,
+        outbound=_replace(
+            make_flight(airline="ジェットスター", price=7100), carry_on_included=False
+        ),
+        inbound=make_flight(
+            airline="ANA", dep="19:05", arr="20:30", price=7000,
+            origin="HIJ", destination="HND",
+        ),
+        out_sc=3500,
+    )
+    text = formatter.format_combination(combo)
+    assert "手荷物 往路+￥3,500（機内持ち込み手荷物が別料金の運賃）" in text

@@ -48,6 +48,10 @@ class Flight:
     arrive_time: time      # JST
     price: int             # 片道価格（JPY, 整数）
     flight_number: str | None = None
+    # その運賃に機内持ち込み手荷物（1個）が含まれるか。Google Flights の表示
+    # 「この料金には機内持ち込み手荷物料金が含まれていません」に基づく。
+    # None = 情報なし（スタブ等）。この場合は航空会社リストで判定する（pricing.py）。
+    carry_on_included: bool | None = None
 
     # TODO(Phase 1): 到着が翌日になるケース（国内線では基本発生しない）の扱いを決める
 

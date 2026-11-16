@@ -181,6 +181,29 @@ def _row_price(row: object) -> object:
         return None
 
 
+def _row_carry_on_included(row: object) -> bool | None:
+    """その運賃に機内持ち込み手荷物が含まれるかを、行データから読み取る。
+
+    row[5][0] == 1 の便にだけ、Google Flights は
+    「この料金には機内持ち込み手荷物料金が含まれていません」と表示する
+    （2026-11 実測: 成田→福岡/新千歳・羽田→福岡の計89便で表示と完全一致。
+    該当はジェットスターの最安運賃のみ。Peach・春秋航空日本・ANA・JAL・
+    スカイマーク・スターフライヤーは 0 ＝含まれる）。
+
+    Returns:
+        True=含まれる / False=含まれない / None=読み取れない（構造が想定外）
+    """
+    try:
+        flag = row[5][0]  # type: ignore[index]
+    except (IndexError, TypeError):
+        return None
+    if flag == 1:
+        return False
+    if flag == 0:
+        return True
+    return None
+
+
 def _row_key(row: object) -> str | None:
     """同一便の判定キー（便名＋発着時刻、乗継便は全区間）。作れなければ None。"""
     try:
@@ -248,7 +271,17 @@ def parse_flights_html(html: str) -> tuple[list[object], int]:
     else:
         payload[3] = [priced]
     sanitized_js = "data:" + json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + ","
-    return list(parse_js(sanitized_js)), skipped
+    result = list(parse_js(sanitized_js))
+
+    # 上流の解析結果は手荷物の情報を持たないため、行データから読んだ値を添える。
+    # parse_js は便リストを順番どおり1件ずつ変換するので、位置で対応がとれる。
+    if len(result) == len(priced):
+        for parsed, row in zip(result, priced):
+            try:
+                parsed.carry_on_included = _row_carry_on_included(row)
+            except AttributeError:  # 上流のモデルが属性追加を許さない場合は情報なし
+                break
+    return result, skipped
 
 
 def to_time(parts: object) -> time:
@@ -302,6 +335,7 @@ def flights_to_flight(
         arrive_time=arrive,
         price=price_int,
         flight_number=None,  # parser が取得しないため
+        carry_on_included=getattr(parsed, "carry_on_included", None),
     )
 
 

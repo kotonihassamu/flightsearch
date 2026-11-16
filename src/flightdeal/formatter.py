@@ -61,6 +61,8 @@ def _surcharge_note(combo: Combination) -> str:
         if combo.inbound_surcharge:
             parts.append(f"復路+{yen(combo.inbound_surcharge)}")
         base = f"手荷物 {' / '.join(parts)}"
+        if combo.outbound.carry_on_included is False or combo.inbound.carry_on_included is False:
+            base += "（機内持ち込み手荷物が別料金の運賃）"
 
     if combo.provisional_surcharge:
         base += "（※補正額は仮。航空会社が未分類のため実際と異なる場合あり）"

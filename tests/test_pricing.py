@@ -119,3 +119,44 @@ def test_effective_price_lcc_and_carry_on(live_cfg):
     assert (out_sc, in_sc) == (live_cfg.baggage_surcharge_oneway, 0)
     assert total == 6900 + live_cfg.baggage_surcharge_oneway + 13100
     assert provisional is False
+
+
+# --- Google の運賃情報（機内持ち込み可否）を優先する ------------------------------
+
+
+def test_carry_on_included_overrides_lcc_list(live_cfg):
+    """LCCでも、その運賃に機内持ち込み手荷物が含まれるなら補正しない（例: Peach）。"""
+    assert pricing.surcharge_for("Peach", live_cfg, carry_on_included=True) == (0, False)
+
+
+def test_carry_on_excluded_adds_surcharge_even_for_listed_airline(live_cfg):
+    """機内持ち込みが別料金の運賃なら、どのリストに入っていても補正する。"""
+    amount = live_cfg.baggage_surcharge_oneway
+    assert pricing.surcharge_for("ジェットスター", live_cfg, carry_on_included=False) == (
+        amount, False,
+    )
+    assert pricing.surcharge_for("スカイマーク", live_cfg, carry_on_included=False) == (
+        amount, False,
+    )
+
+
+def test_unknown_airline_with_carry_on_info_is_not_provisional(live_cfg):
+    """リスト外の航空会社でも、運賃情報があれば「仮」扱いにしない。"""
+    assert pricing.surcharge_for("トキエア", live_cfg, carry_on_included=True) == (0, False)
+
+
+def test_falls_back_to_airline_lists_without_info(live_cfg):
+    assert pricing.surcharge_for("Peach", live_cfg, carry_on_included=None) == (
+        live_cfg.baggage_surcharge_oneway, False,
+    )
+
+
+def test_effective_price_uses_flight_carry_on_info(live_cfg):
+    from dataclasses import replace as _replace
+
+    out = _replace(make_flight(airline="Peach", price=6900), carry_on_included=True)
+    ret = _replace(make_flight(airline="ジェットスター", price=7100), carry_on_included=False)
+    total, out_sc, in_sc, provisional = pricing.effective_price(out, ret, live_cfg)
+    assert (out_sc, in_sc) == (0, live_cfg.baggage_surcharge_oneway)
+    assert total == 6900 + 7100 + live_cfg.baggage_surcharge_oneway
+    assert provisional is False

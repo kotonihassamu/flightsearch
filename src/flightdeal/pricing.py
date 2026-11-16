@@ -74,13 +74,27 @@ def classify_airline(airline: str, cfg: Config) -> AirlineClass:
     return AirlineClass.UNKNOWN
 
 
-def surcharge_for(airline: str, cfg: Config) -> tuple[int, bool]:
+def surcharge_for(
+    airline: str, cfg: Config, carry_on_included: bool | None = None
+) -> tuple[int, bool]:
     """片道あたりの補正額と「暫定フラグ」を返す（要件3.4）。
+
+    判定の優先順:
+      1. Google Flights の運賃情報（carry_on_included）があればそれに従う。
+         機内持ち込み手荷物が含まれる運賃なら +0円、含まれないなら補正額を加える。
+         LCCでも持ち込み1個が無料なら補正しない、という方針をそのまま表す。
+      2. 情報が無ければ航空会社リストで判定する（FSC・機内持ち込み無料 → +0円、
+         LCC → 補正額、リスト外 → 補正額＋「仮」注記）。
 
     Returns:
         (補正額, provisional)
         provisional=True のとき、通知本文に「補正額は仮」の注記を入れる。
     """
+    if carry_on_included is True:
+        return 0, False
+    if carry_on_included is False:
+        return cfg.baggage_surcharge_oneway, False
+
     kind = classify_airline(airline, cfg)
     if kind in (AirlineClass.FSC, AirlineClass.CARRY_ON):
         # FSC は受託手荷物込み。LCC・中堅でも機内持ち込み1個が無料なら補正しない。
@@ -99,7 +113,7 @@ def effective_price(
     Returns:
         (実質価格, 往路補正, 復路補正, provisional)
     """
-    out_sc, out_prov = surcharge_for(outbound.airline, cfg)
-    in_sc, in_prov = surcharge_for(inbound.airline, cfg)
+    out_sc, out_prov = surcharge_for(outbound.airline, cfg, outbound.carry_on_included)
+    in_sc, in_prov = surcharge_for(inbound.airline, cfg, inbound.carry_on_included)
     total = outbound.price + out_sc + inbound.price + in_sc
     return total, out_sc, in_sc, (out_prov or in_prov)

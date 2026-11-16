@@ -374,3 +374,34 @@ def test_fetch_returns_empty_list_when_no_flights(monkeypatch):
 
     assert fetcher.fetch("HND", "HNA", date(2026, 11, 21)) == []
     assert fetcher.last_excluded == 0
+
+
+# --- 機内持ち込み手荷物の情報（2026-11 追加） -------------------------------------
+
+
+def test_parser_reads_carry_on_flag(monkeypatch):
+    """row[5][0]==1 の便（「機内持ち込み手荷物料金が含まれていません」）を読み取る。"""
+    raw, js, payload = _load_raw_payload()
+    target = payload[3][0][0]
+    target[5][0] = 1
+    dep = target[0][2][0][8]
+    html = _html_with_payload(raw, js, payload)
+
+    fetcher = FastFlightsFetcher()
+    monkeypatch.setattr(fetcher, "fetch_html", lambda *a, **k: html)
+    flights = fetcher.fetch("HND", "HIJ", date(2026, 8, 1))
+
+    excluded = [f for f in flights if f.carry_on_included is False]
+    included = [f for f in flights if f.carry_on_included is True]
+    assert len(excluded) == 1
+    assert excluded[0].depart_time == to_time(dep)
+    assert len(included) == len(flights) - 1  # ANA/JAL は持ち込み込み
+
+
+def test_carry_on_flag_unknown_when_structure_differs():
+    from flightdeal.fetchers.fast_flights_fetcher import _row_carry_on_included
+
+    assert _row_carry_on_included([None, None, None, None, None, [0, 0, 0]]) is True
+    assert _row_carry_on_included([None, None, None, None, None, [1, 0, 0]]) is False
+    assert _row_carry_on_included([None, None, None, None, None, None]) is None
+    assert _row_carry_on_included([None]) is None
