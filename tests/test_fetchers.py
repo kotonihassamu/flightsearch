@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import date, time
+from pathlib import Path
 
 import pytest
 
@@ -228,7 +229,8 @@ def test_parser_skips_unpriced_rows_without_losing_priced_flights():
     raw = (
         Path(__file__).parent / "fixtures" / "raw" / "HND-HIJ-2026-08-01.html"
     ).read_text(encoding="utf-8")
-    baseline = list(parse(raw))
+    baseline, baseline_skipped = parse_flights_html(raw)
+    assert baseline_skipped == 0
 
     document = LexborHTMLParser(raw)
     script = document.css_first(r"script.ds\:1")
@@ -250,3 +252,125 @@ def test_parser_skips_unpriced_rows_without_losing_priced_flights():
     result, skipped = parse_flights_html(broken_html)
     assert skipped == 1
     assert len(result) == len(baseline)
+
+
+# --- おすすめ欄・エラー応答の扱い（2026-11 修正） ---------------------------------
+
+RAW_HIJ = Path(__file__).parent / "fixtures" / "raw" / "HND-HIJ-2026-08-01.html"
+
+
+def _load_raw_payload():
+    import json
+
+    from selectolax.lexbor import LexborHTMLParser
+
+    raw = RAW_HIJ.read_text(encoding="utf-8")
+    js = LexborHTMLParser(raw).css_first(r"script.ds\:1").text()
+    payload = json.loads(js.split("data:", 1)[1].rsplit(",", 1)[0])
+    return raw, js, payload
+
+
+def _html_with_payload(raw, original_js, payload):
+    import json
+
+    new_js = "data:" + json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + ","
+    return raw.replace(original_js, new_js, 1)
+
+
+def test_parser_reads_recommended_section():
+    """「おすすめの便」欄（payload[2]）の便も取得する。
+
+    fast-flights 3.0.2 の parse は payload[3]（その他の便）しか読まない。
+    最安便がおすすめ欄にしか無いことがあるため、両欄を読む必要がある。
+    """
+    from fast_flights.parser import parse
+
+    raw, _, payload = _load_raw_payload()
+    recommended = len(payload[2][0])
+    others = len(payload[3][0])
+    assert recommended > 0  # 前提: フィクスチャにおすすめ欄がある
+
+    upstream = list(parse(raw))
+    result, skipped = parse_flights_html(raw)
+
+    assert len(upstream) == others
+    assert len(result) == recommended + others
+    assert skipped == 0
+
+
+def test_parser_handles_only_recommended_section():
+    """「その他」欄が None（おすすめ欄だけ）のページでも落ちない。"""
+    raw, js, payload = _load_raw_payload()
+    recommended = len(payload[2][0])
+    payload[3] = None
+
+    result, _ = parse_flights_html(_html_with_payload(raw, js, payload))
+    assert len(result) == recommended
+
+
+def test_parser_returns_empty_when_no_flights():
+    """両欄とも空なら便なし（[]）。解析失敗の例外にはしない。"""
+    raw, js, payload = _load_raw_payload()
+    payload[2] = None
+    payload[3] = None
+
+    result, skipped = parse_flights_html(_html_with_payload(raw, js, payload))
+    assert result == []
+    assert skipped == 0
+
+
+def test_parser_deduplicates_same_flight_keeping_cheaper():
+    """同じ便が両欄に載っていたら1件にまとめ、安いほうを残す。"""
+    import copy
+
+    raw, js, payload = _load_raw_payload()
+    total = len(payload[2][0]) + len(payload[3][0])
+    duplicate = copy.deepcopy(payload[2][0][0])
+    original_price = duplicate[1][0][1]
+    duplicate[1][0][1] = original_price - 1000
+    payload[3][0].append(duplicate)
+
+    result, _ = parse_flights_html(_html_with_payload(raw, js, payload))
+    assert len(result) == total
+    assert min(f.price for f in result) <= original_price - 1000
+
+
+def test_parser_raises_on_google_error_response():
+    """errorHasStatus は「便なし」ではなく、リトライ対象のエラーとして扱う。"""
+    from flightdeal.fetchers import GoogleErrorResponse
+
+    raw, js, _ = _load_raw_payload()
+    broken = raw.replace(js, "data:[null],errorHasStatus: true,", 1)
+
+    with pytest.raises(GoogleErrorResponse):
+        parse_flights_html(broken)
+
+
+def test_fetch_propagates_google_error_as_fetch_error(monkeypatch):
+    """fetch() はエラー応答を0件として返さず、FetchError（リトライ対象）にする。"""
+    from flightdeal.fetchers import GoogleErrorResponse
+
+    raw, js, _ = _load_raw_payload()
+    broken = raw.replace(js, "data:[null],errorHasStatus: true,", 1)
+
+    fetcher = FastFlightsFetcher()
+    monkeypatch.setattr(fetcher, "fetch_html", lambda *a, **k: broken)
+
+    with pytest.raises(GoogleErrorResponse) as excinfo:
+        fetcher.fetch("FUK", "HND", date(2026, 11, 22))
+    assert isinstance(excinfo.value, FetchError)
+    assert "FUK-HND" in str(excinfo.value)
+
+
+def test_fetch_returns_empty_list_when_no_flights(monkeypatch):
+    """本当に便が無い区間は、エラーではなく0件を返す。"""
+    raw, js, payload = _load_raw_payload()
+    payload[2] = None
+    payload[3] = None
+    empty = _html_with_payload(raw, js, payload)
+
+    fetcher = FastFlightsFetcher()
+    monkeypatch.setattr(fetcher, "fetch_html", lambda *a, **k: empty)
+
+    assert fetcher.fetch("HND", "HNA", date(2026, 11, 21)) == []
+    assert fetcher.last_excluded == 0

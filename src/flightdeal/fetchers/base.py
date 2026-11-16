@@ -26,6 +26,15 @@ class BlockedError(FetchError):
     """
 
 
+class GoogleErrorResponse(FetchError):
+    """Google Flights がエラー応答（errorHasStatus）を返した。
+
+    「その日に便が無い」とは別物の一時的な失敗。リトライ・再試行の対象にする。
+    以前は便なし（0件）として扱っていたため、福岡→羽田のような便が確実にある
+    区間が黙って0件になり、その路線の組み合わせが丸ごと消えていた（2026-11 判明）。
+    """
+
+
 class FlightFetcher(ABC):
     """片道1検索を担う取得器。"""
 

@@ -42,7 +42,7 @@ def test_format_combination_has_all_required_fields():
     assert "▲35%" in text
     assert "往路 8/1: ANA 07:25発 → 08:50着（片道 ￥11,400）" in text
     assert "復路 8/2: ANA 19:05発 → 20:30着（片道 ￥11,400）" in text
-    assert "補正: なし（FSC）" in text
+    assert "補正: なし（FSC／機内持込可）" in text
     assert "往路検索: https://www.google.com/travel/flights?" in text
     assert "復路検索: https://www.google.com/travel/flights?" in text
 

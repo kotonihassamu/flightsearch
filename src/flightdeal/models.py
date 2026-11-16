@@ -22,6 +22,7 @@ class AirlineClass(str, Enum):
     """手荷物補正の区分（要件3.4）。"""
 
     FSC = "fsc"          # +0円
+    CARRY_ON = "carry_on"  # LCC・中堅でも機内持ち込み1個が無料 -> +0円
     LCC = "lcc"          # +baggage_surcharge_oneway
     UNKNOWN = "unknown"   # リスト外 -> LCC扱い＋「補正額は仮」注記
 
