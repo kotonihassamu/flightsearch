@@ -234,3 +234,56 @@ def test_flights_are_immutable():
     )
     with pytest.raises(Exception):
         f.price = 1  # type: ignore[misc]
+
+
+class SegmentFlakyFetcher(StubFetcher):
+    """指定区間だけ、最初の fail_times 回失敗するフェッチャ。"""
+
+    def __init__(self, segment: str, fail_times: int) -> None:
+        super().__init__()
+        self.segment = segment
+        self.fail_times = fail_times
+        self.segment_calls = 0
+
+    def fetch(self, origin, destination, flight_date):
+        if f"{origin}-{destination}" == self.segment:
+            self.segment_calls += 1
+            if self.segment_calls <= self.fail_times:
+                raise FetchError("Google Flights がエラー応答（errorHasStatus）を返しました")
+        return super().fetch(origin, destination, flight_date)
+
+
+def test_failed_route_is_retried_after_all_routes(fast_cfg):
+    """1巡目でリトライを使い切った路線も、全路線の後の2巡目で回復できる。"""
+    attempts = fast_cfg.search.retry_max + 1
+    fetcher = SegmentFlakyFetcher("HND-HIJ", fail_times=attempts)
+
+    result = pipeline.run(fetcher, fast_cfg, today=TODAY)
+
+    hij = [r for r in result.results if r.route.iata == "HIJ"]
+    assert len(result.results) == len(fast_cfg.enabled_destinations) * fast_cfg.weekends_ahead
+    assert hij and not any(r.failed for r in hij)
+    assert hij[0].combinations
+    assert fetcher.segment_calls == attempts + 1
+
+
+def test_retry_pass_respects_search_limit(fast_cfg):
+    """2巡目も検索回数の上限を超えない（上限ちょうどなら2巡目はしない）。"""
+    planned = len(fast_cfg.enabled_destinations) * fast_cfg.weekends_ahead * 2
+    cfg = replace(fast_cfg, search=replace(fast_cfg.search, max_searches_per_run=planned))
+    fetcher = SegmentFlakyFetcher("HND-HIJ", fail_times=cfg.search.retry_max + 1)
+
+    result = pipeline.run(fetcher, cfg, today=TODAY)
+
+    hij = [r for r in result.results if r.route.iata == "HIJ"]
+    assert hij and all(r.failed for r in hij)
+    assert fetcher.segment_calls == cfg.search.retry_max + 1
+
+
+def test_permanently_failing_route_stays_failed(fast_cfg):
+    """2巡目でも失敗する路線は失敗のまま残る（握りつぶさない）。"""
+    fetcher = StubFetcher(fail_routes={"HND-HIJ"})
+    result = pipeline.run(fetcher, fast_cfg, today=TODAY)
+    hij = [r for r in result.results if r.route.iata == "HIJ"]
+    assert hij and all(r.failed for r in hij)
+    assert not result.all_failed

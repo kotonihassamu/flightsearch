@@ -178,6 +178,58 @@ def process_route(
     return result
 
 
+def _retry_failed_routes(
+    fetcher: FlightFetcher, run_result: RunResult, cfg: Config, searches_used: int
+) -> int:
+    """1巡目で失敗した路線・週末を、全路線の処理後にもう一度だけ試す。
+
+    実測（2026-11）では Google のエラー応答が実行開始から数分間に集中し、
+    その時間帯に当たった路線（config の先頭側。九州の主要路線を含む）が毎回
+    失敗していた。数秒〜数十秒のリトライでは同じ時間帯を抜けられないため、
+    全路線を回し終えた後（＝十数分後）に再試行する。
+
+    検索回数の上限（max_searches_per_run）は2巡目も含めて守る。
+
+    Returns:
+        2巡目で使った検索回数
+    """
+    failed_positions = [i for i, r in enumerate(run_result.results) if r.failed]
+    if not failed_positions:
+        return 0
+
+    log.info("retry_pass_start", extra={"failed": len(failed_positions)})
+    used = 0
+    recovered = 0
+    for pos in failed_positions:
+        if searches_used + used + 2 > cfg.search.max_searches_per_run:
+            log.warning(
+                "retry_pass_limit_reached",
+                extra={"used": searches_used + used, "limit": cfg.search.max_searches_per_run},
+            )
+            break
+        previous = run_result.results[pos]
+        sleep_between_searches(cfg)
+        retried = process_route(fetcher, previous.route, previous.weekend, cfg)
+        used += 2
+        run_result.results[pos] = retried
+        if not retried.failed:
+            recovered += 1
+        log.info(
+            "retry_pass_route",
+            extra={
+                "route": previous.route.iata,
+                "weekend": previous.weekend.index,
+                "recovered": not retried.failed,
+            },
+        )
+
+    log.info(
+        "retry_pass_done",
+        extra={"retried": used // 2, "recovered": recovered, "searches": used},
+    )
+    return used
+
+
 def run(fetcher: FlightFetcher, cfg: Config, today: date | None = None) -> RunResult:
     """1実行分のパイプラインを回す。"""
     started = time_mod.monotonic()
@@ -206,6 +258,8 @@ def run(fetcher: FlightFetcher, cfg: Config, today: date | None = None) -> RunRe
         else:
             continue
         break
+
+    searches_used += _retry_failed_routes(fetcher, run_result, cfg, searches_used)
 
     run_result.elapsed_seconds = round(time_mod.monotonic() - started, 2)
     log.info(

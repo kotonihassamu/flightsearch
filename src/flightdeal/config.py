@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import time
 from pathlib import Path
 
@@ -49,6 +49,8 @@ class Config:
     notifier: str
     search: SearchPolicy
     vpn: "VpnConfig"
+    # LCC・中堅でも機内持ち込み1個が無料の航空会社。手荷物補正をかけない（+0円）。
+    carry_on_free_airlines: list[str] = field(default_factory=list)
 
     @property
     def enabled_destinations(self) -> list[RouteConfig]:
@@ -87,6 +89,7 @@ def _from_dict(raw: dict) -> Config:
         baggage_surcharge_oneway=int(raw["baggage_surcharge_oneway"]),
         lcc_airlines=list(raw["lcc_airlines"]),
         fsc_airlines=list(raw["fsc_airlines"]),
+        carry_on_free_airlines=list(raw.get("carry_on_free_airlines", [])),
         rank_thresholds={k: float(v) for k, v in raw["rank_thresholds"].items()},
         notify_top_n_per_route=int(raw["notify_top_n_per_route"]),
         notify_max_total=int(raw.get("notify_max_total", 0)),
@@ -124,9 +127,17 @@ def validate_config(cfg: Config) -> None:
         if d.market_price <= 0 or d.max_price <= 0:
             raise ValueError(f"{d.iata}: market_price / max_price は正の整数である必要があります")
 
-    overlap = set(cfg.lcc_airlines) & set(cfg.fsc_airlines)
-    if overlap:
-        raise ValueError(f"lcc_airlines と fsc_airlines が重複しています: {sorted(overlap)}")
+    airline_lists = {
+        "fsc_airlines": set(cfg.fsc_airlines),
+        "carry_on_free_airlines": set(cfg.carry_on_free_airlines),
+        "lcc_airlines": set(cfg.lcc_airlines),
+    }
+    names = list(airline_lists)
+    for i, left in enumerate(names):
+        for right in names[i + 1:]:
+            overlap = airline_lists[left] & airline_lists[right]
+            if overlap:
+                raise ValueError(f"{left} と {right} が重複しています: {sorted(overlap)}")
 
     if cfg.notify_top_n_per_route < 1:
         raise ValueError("notify_top_n_per_route は1以上です")

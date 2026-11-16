@@ -7,7 +7,7 @@
     実質 ￥22,800（片道×2の合算 / 相場 ￥35,000 / ▲35%）
     往路 8/1: ANA 07:25発 → 08:50着（片道 ￥11,400）
     復路 8/2: ANA 19:05発 → 20:30着（片道 ￥11,400）
-    補正: なし（FSC）
+    補正: なし（FSC／機内持込可）
     往路検索: https://www.google.com/travel/flights?tfs=...
     復路検索: https://www.google.com/travel/flights?tfs=...
 
@@ -53,7 +53,7 @@ def _surcharge_note(combo: Combination) -> str:
     """補正の内訳を1行で表す。"""
     total = combo.outbound_surcharge + combo.inbound_surcharge
     if total == 0:
-        base = "なし（FSC）"
+        base = "なし（FSC／機内持込可）"
     else:
         parts = []
         if combo.outbound_surcharge:
@@ -61,6 +61,8 @@ def _surcharge_note(combo: Combination) -> str:
         if combo.inbound_surcharge:
             parts.append(f"復路+{yen(combo.inbound_surcharge)}")
         base = f"手荷物 {' / '.join(parts)}"
+        if combo.outbound.carry_on_included is False or combo.inbound.carry_on_included is False:
+            base += "（機内持ち込み手荷物が別料金の運賃）"
 
     if combo.provisional_surcharge:
         base += "（※補正額は仮。航空会社が未分類のため実際と異なる場合あり）"

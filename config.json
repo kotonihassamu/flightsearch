@@ -51,7 +51,7 @@
       "enabled": true
     },
     {
-      "iata": "KCH",
+      "iata": "KCZ",
       "name": "高知",
       "market_price": 40000,
       "max_price": 34000,
@@ -311,16 +311,39 @@
   "baggage_surcharge_oneway": 3500,
   "lcc_airlines": [
     "Peach",
+    "ピーチ",
     "Jetstar",
-    "Spring Japan"
+    "ジェットスター",
+    "Spring Japan",
+    "スプリング・ジャパン"
+  ],
+  "carry_on_free_airlines": [
+    "Skymark",
+    "スカイマーク",
+    "Solaseed",
+    "ソラシドエア",
+    "StarFlyer",
+    "スターフライヤー",
+    "AIRDO",
+    "エア・ドゥ"
   ],
   "fsc_airlines": [
     "ANA",
+    "全日空",
     "JAL",
-    "Skymark",
-    "Solaseed",
-    "AIRDO",
-    "StarFlyer"
+    "日本航空",
+    "日本トランスオーシャン",
+    "Japan Transocean",
+    "日本エアコミューター",
+    "琉球エアーコミューター",
+    "J-AIR",
+    "ジェイエア",
+    "アイベックス",
+    "IBEX",
+    "オリエンタルエアブリッジ",
+    "北海道エアシステム",
+    "フジドリームエアラインズ",
+    "Fuji Dream"
   ],
   "rank_thresholds": {
     "S": 0.7,

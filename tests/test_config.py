@@ -156,6 +156,28 @@ def test_airline_lists_must_not_overlap():
         _from_dict(data)
 
 
+def test_carry_on_list_must_not_overlap():
+    data = base_config()
+    data["carry_on_free_airlines"] = ["Solaseed"]  # FSC 側にもある
+    with pytest.raises(ValueError, match="重複"):
+        _from_dict(data)
+
+
+def test_carry_on_list_defaults_to_empty():
+    cfg = _from_dict(base_config())
+    assert cfg.carry_on_free_airlines == []
+
+
+def test_live_config_uses_kochi_kcz():
+    """高知龍馬空港は KCZ（KCH はマレーシアのクチン）。"""
+    from pathlib import Path
+
+    cfg = load_config(Path(__file__).resolve().parents[1] / "config.json")
+    codes = {d.iata for d in cfg.destinations}
+    assert "KCZ" in codes
+    assert "KCH" not in codes
+
+
 def test_load_config_from_path(tmp_path):
     path = tmp_path / "c.json"
     path.write_text(json.dumps(base_config(), ensure_ascii=False), encoding="utf-8")

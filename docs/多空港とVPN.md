@@ -14,7 +14,7 @@ HND発・直行便のある空港。
 | 東北 | 青森 AOJ / 秋田 AXT / 三沢 MSJ / 大館能代 ONJ / 庄内 SYO / いわて花巻 HNA / 山形 GAJ |
 | 北陸・伊豆 | 小松 KMQ / 能登 NTQ / 八丈島 HAC |
 | 近畿 | 大阪伊丹 ITM / 南紀白浜 SHM |
-| 中国・四国 | 広島 HIJ / 松山 MYJ / 高知 KCH / 鳥取 TTJ / 米子 YGJ / 出雲 IZO / 萩石見 IWJ / 高松 TAK / 徳島 TKS |
+| 中国・四国 | 広島 HIJ / 松山 MYJ / 高知 KCZ / 鳥取 TTJ / 米子 YGJ / 出雲 IZO / 萩石見 IWJ / 高松 TAK / 徳島 TKS |
 | 九州 | 福岡 FUK / 北九州 KKJ / 佐賀 HSG / 長崎 NGS / 熊本 KMJ / 大分 OIT / 宮崎 KMI / 鹿児島 KOJ |
 | 奄美・沖縄 | 那覇 OKA / 奄美 ASJ / 宮古 MMY / 石垣 ISG / 久米島 UEO（夏季） |
 
